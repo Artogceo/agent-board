@@ -4,11 +4,28 @@
   const COLUMNS = ["backlog", "todo", "doing", "review", "rework", "done", "failed"];
   const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", rework: "Rework", done: "Done", failed: "Failed" };
 
+  // Load saved project from localStorage
+  function getSavedProject() {
+    try {
+      return localStorage.getItem("ab-currentProject");
+    } catch { return null; }
+  }
+
+  function saveCurrentProject(projectId) {
+    try {
+      if (projectId) {
+        localStorage.setItem("ab-currentProject", projectId);
+      } else {
+        localStorage.removeItem("ab-currentProject");
+      }
+    } catch { /* ignore */ }
+  }
+
   let state = {
     projects: [],
     tasks: [],
     agents: [],
-    currentProject: null,
+    currentProject: getSavedProject(),
     currentView: "board",
     filterAgent: null,
     showArchived: false,
@@ -44,8 +61,16 @@
   async function loadProjects() {
     state.projects = await api("/projects");
     renderProjectSelect();
-    if (state.projects.length && !state.currentProject) {
+    
+    // Use saved project if it exists and is still valid
+    const savedProject = getSavedProject();
+    const projectExists = state.projects.some(p => p.id === savedProject);
+    
+    if (state.projects.length && (!state.currentProject || !projectExists)) {
       state.currentProject = state.projects[0].id;
+      saveCurrentProject(state.currentProject);
+    } else if (projectExists) {
+      state.currentProject = savedProject;
     }
   }
 
@@ -78,6 +103,7 @@
 
   projectSelect.addEventListener("change", async () => {
     state.currentProject = projectSelect.value;
+    saveCurrentProject(state.currentProject);
     await loadTasks();
     render();
   });
