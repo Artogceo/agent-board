@@ -842,24 +842,13 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
       : moveResult.task;
     notifyAgent(taskToNotify, contextMap[column], "task.move").catch(() => {});
 
-    // Also notify Steve (Telegram) when task enters review
+    // Direct Telegram push via Org bot when task enters review (single notification)
     if (column === "review") {
-      const steveTask = { ...moveResult.task, assignee: "steve" } as Task;
-      const reviewMsg = moveResult.task.planningMode
-        ? `📋 ТЗ к задаче "${moveResult.task.title}" готово к согласованию`
-        : `Задача "${moveResult.task.title}" готова к review`;
-      const reviewEvent = moveResult.task.planningMode ? "task.tz-review" : "task.review";
-      notifyAgent(steveTask, reviewMsg, reviewEvent).catch(() => {});
-
-      // Direct Telegram push to owner (bypasses OpenClaw chatId issue)
       const executor = moveResult.task.assignee || "агент";
-      sendTelegramDirect(
-        `✅ <b>Задача выполнена</b>\n\n` +
-        `📌 <b>${moveResult.task.title}</b>\n` +
-        `🆔 ${moveResult.task.id}\n` +
-        `👤 Исполнитель: ${executor}\n\n` +
-        `Задача готова к review. Проверьте дашборд.`
-      ).catch(() => {});
+      const msg = moveResult.task.planningMode
+        ? `📋 <b>ТЗ готово к согласованию</b>\n\n📌 <b>${moveResult.task.title}</b>\n🆔 ${moveResult.task.id}`
+        : `✅ <b>Задача выполнена</b>\n\n📌 <b>${moveResult.task.title}</b>\n🆔 ${moveResult.task.id}\n👤 Исполнитель: ${executor}\n\nПроверьте дашборд.`;
+      sendTelegramDirect(msg).catch(() => {});
     }
 
     // Notify when task moves to done

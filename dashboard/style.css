@@ -480,6 +480,16 @@ header h1 .brand-sub {
   animation: modalFadeIn 0.2s ease forwards;
 }
 
+.modal-overlay .modal.closing {
+  transform: translateY(100vh) !important;
+  transition: transform 0.3s ease-out;
+}
+
+.modal-overlay.closing {
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
 @keyframes modalFadeIn {
   to { opacity: 1; }
 }
@@ -644,6 +654,9 @@ header h1 .brand-sub {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 /* --- Detail header --- */
@@ -752,6 +765,10 @@ header h1 .brand-sub {
   flex-direction: column;
   gap: 6px;
   -webkit-overflow-scrolling: touch;
+  position: relative;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  min-height: 0;
 }
 
 .tl-empty {
@@ -1500,10 +1517,19 @@ header h1 .brand-sub {
     flex-direction: column;
     overflow: hidden;
     padding-bottom: env(safe-area-inset-bottom);
+    will-change: transform;
+    -webkit-transform: translateY(100%);
+    -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .detail-panel.open {
-    transform: translateY(0);
+    transform: translateY(0) !important;
+    -webkit-transform: translateY(0) !important;
+  }
+
+  .detail-panel.swiping {
+    transition: none !important;
+    -webkit-transition: none !important;
   }
 
   /* Drag handle */
@@ -1541,6 +1567,9 @@ header h1 .brand-sub {
     flex-direction: column;
     overflow: hidden;
     margin-top: 20px;
+    position: relative;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
   }
 
   /* Detail header */
@@ -1786,6 +1815,16 @@ header h1 .brand-sub {
     background: rgba(0, 0, 0, 0.6);
   }
 
+  .modal-overlay .modal.closing {
+    transform: translateY(100vh) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .modal-overlay.closing {
+    background: rgba(0, 0, 0, 0) !important;
+    transition: background 0.2s ease-out;
+  }
+
   .modal {
     width: 100vw;
     max-width: 100vw;
@@ -1795,9 +1834,12 @@ header h1 .brand-sub {
     padding: 24px 20px calc(32px + env(safe-area-inset-bottom));
     margin: 0;
     transform: translateY(0);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s ease;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    position: relative;
+    display: flex;
+    flex-direction: column;
   }
 
   .modal-drag-handle {
@@ -2364,11 +2406,107 @@ body {
   .modal-content-scrollable {
     max-height: none !important;
     padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modal collapsed state for mobile */
+  .modal.collapsed {
+    max-height: 40vh;
+    min-height: auto;
+  }
+
+  .modal.collapsed .modal-content-scrollable {
+    max-height: calc(40vh - 80px) !important;
+    overflow: hidden;
+  }
+
+  .modal.collapsed .modal-collapse-btn {
+    transform: rotate(180deg);
   }
 
   /* Body should scroll vertically */
   body {
     overflow-y: auto !important;
     overflow-x: hidden !important;
+  }
+
+  /* Ensure proper scrolling for iOS Safari */
+  .timeline-container {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
+
+/* ===== iOS SAFARI FIXES ===== */
+
+/* Fix for iOS momentum scrolling */
+@supports (-webkit-touch-callout: none) {
+  .modal,
+  .modal-content-scrollable,
+  .timeline-container,
+  #detailContent,
+  .column-body {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Prevent text zoom on input focus */
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Fix for position: fixed elements during keyboard open */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100%;
+    width: 100%;
+  }
+}
+
+/* Ensure inputs are not hidden behind keyboard */
+input:focus,
+textarea:focus {
+  scroll-margin-bottom: 100px;
+}
+
+/* Smooth focus transitions */
+input, textarea, select, button {
+  transition: outline 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Improve touch response on mobile buttons */
+@media (hover: none) and (pointer: coarse) {
+  .btn,
+  .tab,
+  .card,
+  .detail-close,
+  .bottom-nav-item,
+  .fab {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  /* Remove hover effects on touch devices */
+  .btn:hover,
+  .tab:hover,
+  .card:hover {
+    transform: none;
+  }
+
+  /* Active state for touch */
+  .btn:active,
+  .tab:active,
+  .card:active,
+  .bottom-nav-item:active {
+    opacity: 0.8;
   }
 }

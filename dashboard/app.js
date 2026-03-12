@@ -979,8 +979,18 @@
     }
 
     document.getElementById("addCommentBtn").addEventListener("click", sendComment);
-    document.getElementById("commentText").addEventListener("keydown", (e) => {
+    const commentTextEl = document.getElementById("commentText");
+    commentTextEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment(); }
+    });
+    
+    // Focus handler for mobile - scroll into view when keyboard opens
+    commentTextEl.addEventListener('focus', () => {
+      setTimeout(() => {
+        if (window.matchMedia('(max-width: 768px)').matches) {
+          commentTextEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
     });
 
     // Escalate to Pasha
@@ -1202,7 +1212,7 @@
       
       if (keyboardOpen && window.matchMedia('(max-width: 768px)').matches) {
         document.body.classList.add('keyboard-open');
-        modal.style.maxHeight = '60vh';
+        modal.style.maxHeight = '55vh';
       } else {
         document.body.classList.remove('keyboard-open');
         if (!isCollapsed) {
@@ -1212,6 +1222,19 @@
     };
     
     window.addEventListener('resize', handleResize);
+    
+    // Handle focus on inputs to scroll into view (iOS fix)
+    const inputs = modal.querySelectorAll('input, textarea');
+    inputs.forEach(input => {
+      input.addEventListener('focus', () => {
+        // Small delay to allow keyboard to open
+        setTimeout(() => {
+          if (window.matchMedia('(max-width: 768px)').matches) {
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 300);
+      });
+    });
     
     // Close on Escape key
     const handleEscape = (e) => {
