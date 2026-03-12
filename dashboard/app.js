@@ -140,22 +140,31 @@
 
   // --- Theme ---
   const themeToggle = document.getElementById("themeToggle");
+  const themeToggleDesktop = document.getElementById("themeToggleDesktop");
+  const allThemeToggles = [themeToggle, themeToggleDesktop].filter(Boolean);
+
+  function syncThemeToggles(isDark) {
+    allThemeToggles.forEach(btn => {
+      btn.textContent = isDark ? "\u2600" : "\u263E";
+      btn.setAttribute("data-tooltip", "Switch theme");
+    });
+  }
+
   function initTheme() {
     const saved = localStorage.getItem("ab-theme");
-    if (saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches)) {
-      document.documentElement.setAttribute("data-theme", "dark");
-      themeToggle.textContent = "\u2600";
-      themeToggle.setAttribute("data-tooltip", "Switch theme");
-    } else {
-      themeToggle.setAttribute("data-tooltip", "Switch theme");
-    }
+    const prefersDark = !saved && matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved === "dark" || prefersDark;
+    if (isDark) document.documentElement.setAttribute("data-theme", "dark");
+    syncThemeToggles(isDark);
   }
-  themeToggle.addEventListener("click", () => {
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
-    themeToggle.textContent = isDark ? "\u263E" : "\u2600";
-    themeToggle.setAttribute("data-tooltip", "Switch theme");
-    localStorage.setItem("ab-theme", isDark ? "light" : "dark");
+
+  allThemeToggles.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
+      syncThemeToggles(!isDark);
+      localStorage.setItem("ab-theme", isDark ? "light" : "dark");
+    });
   });
   initTheme();
 
@@ -383,6 +392,7 @@
       boardView.classList.remove("hidden");
       renderAgentFilter();
       renderBoard();
+      renderFilterBar();
       initPullToRefresh();
     } else if (state.currentView === "agents") {
       agentsView.classList.remove("hidden");
@@ -455,6 +465,73 @@
         <tbody>${agentRows || '<tr><td colspan="7">No agent data yet</td></tr>'}</tbody>
       </table>
     `;
+  }
+
+  // --- Filter Bar (mobile column tabs) ---
+  let _filterBarScrollListener = null;
+
+  function renderFilterBar() {
+    const filterBar = document.getElementById("filterBar");
+    if (!filterBar) return;
+    // Only active on mobile
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    if (!isMobile) { filterBar.innerHTML = ""; return; }
+
+    const COL_COLORS = {
+      backlog: "var(--col-backlog)", todo: "var(--col-todo)", doing: "var(--col-doing)",
+      review: "var(--col-review)", rework: "var(--col-rework)", done: "var(--col-done)", failed: "var(--col-failed)"
+    };
+
+    filterBar.innerHTML = COLUMNS.map((col) => {
+      let tasks = state.tasks.filter((t) => t.column === col);
+      if (!state.showArchived) tasks = tasks.filter((t) => !t.archived);
+      if (state.filterAgent) tasks = tasks.filter((t) => t.assignee === state.filterAgent);
+      const count = tasks.length;
+      return `<button class="filter-tab" data-col="${col}">
+        <span class="ft-dot" style="background:${COL_COLORS[col] || "#666"}"></span>
+        ${COL_LABELS[col]}<span class="ft-count">${count}</span>
+      </button>`;
+    }).join("");
+
+    const board = document.getElementById("boardView");
+
+    // Click tab → scroll board to that column
+    filterBar.querySelectorAll(".filter-tab").forEach((tab, idx) => {
+      tab.addEventListener("click", () => {
+        if (!board) return;
+        const colEl = board.querySelector(`.column[data-col="${tab.dataset.col}"]`);
+        if (colEl) {
+          board.scrollTo({ left: colEl.offsetLeft, behavior: "smooth" });
+        }
+        // Update active state immediately
+        filterBar.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        // Scroll filter bar to show active tab
+        tab.scrollIntoView({ inline: "nearest", block: "nearest" });
+      });
+    });
+
+    // Mark first tab as active initially
+    const firstTab = filterBar.querySelector(".filter-tab");
+    if (firstTab) firstTab.classList.add("active");
+
+    // Sync active tab on board scroll
+    if (_filterBarScrollListener && board) {
+      board.removeEventListener("scroll", _filterBarScrollListener);
+    }
+    if (board) {
+      _filterBarScrollListener = () => {
+        const scrollLeft = board.scrollLeft;
+        const colWidth = board.clientWidth;
+        const colIndex = Math.round(scrollLeft / colWidth);
+        const tabs = filterBar.querySelectorAll(".filter-tab");
+        tabs.forEach((t, i) => t.classList.toggle("active", i === colIndex));
+        // Auto-scroll filter bar to show active tab
+        const activeTab = filterBar.querySelector(".filter-tab.active");
+        if (activeTab) activeTab.scrollIntoView({ inline: "nearest", block: "nearest" });
+      };
+      board.addEventListener("scroll", _filterBarScrollListener, { passive: true });
+    }
   }
 
   function renderBoard() {
@@ -802,6 +879,7 @@
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
       document.body.style.top = `-${scrollY}px`;
+      document.body.classList.add('detail-panel-open');
       document.body.dataset.panelScrollY = scrollY;
       const backdrop = document.getElementById('detailBackdrop');
       if (backdrop) {
@@ -817,6 +895,7 @@
     document.body.style.position = '';
     document.body.style.width = '';
     document.body.style.top = '';
+    document.body.classList.remove('detail-panel-open');
     if (scrollY) window.scrollTo(0, scrollY);
     delete document.body.dataset.panelScrollY;
     const backdrop = document.getElementById('detailBackdrop');
@@ -1047,6 +1126,25 @@
           if (arrow) arrow.textContent = body.classList.contains("collapsed") ? "▶" : "▼";
         }
       });
+    }
+
+    // On mobile: collapse spec/report sections by default so comments are visible
+    if (window.matchMedia("(max-width: 768px)").matches) {
+      const specBody = document.getElementById("specBody");
+      const reportBody = document.getElementById("reportBody");
+      if (specBody && task.technicalSpec) {
+        specBody.classList.add("collapsed");
+        const a = specToggle && specToggle.querySelector(".detail-spec-arrow");
+        if (a) a.textContent = "▶";
+      }
+      if (reportBody && task.completionReport) {
+        reportBody.classList.add("collapsed");
+        const a = reportToggle && reportToggle.querySelector(".detail-spec-arrow");
+        if (a) a.textContent = "▶";
+      }
+      // Scroll detail content to top to show title and comments
+      const detailContent = document.getElementById("detailContent");
+      if (detailContent) setTimeout(() => { detailContent.scrollTop = 0; }, 50);
     }
 
     // Send comment
@@ -1540,9 +1638,18 @@
     });
 
     overlay.querySelector("#modalCancel").addEventListener("click", () => overlay.remove());
-    overlay.querySelector("#modalConfirm").addEventListener("click", async () => {
+    overlay.querySelector("#modalConfirm").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = "Creating...";
+
       const title = overlay.querySelector("#modalTaskTitle").value.trim();
-      if (!title) return;
+      if (!title) {
+        btn.disabled = false;
+        btn.textContent = "Create";
+        return;
+      }
       const tags = overlay.querySelector("#modalTaskTags").value.trim();
       const isComplex = overlay.querySelector("#modalComplexMode").checked;
       const isPlanning = overlay.querySelector("#modalPlanningMode").checked;
@@ -1588,7 +1695,7 @@
       overlay.remove();
       await loadTasks();
       render();
-    });
+    }, { once: true });
   }
 
   document.getElementById("newTaskBtn").addEventListener("click", () => showTaskModal("backlog"));

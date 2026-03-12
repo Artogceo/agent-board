@@ -82,13 +82,17 @@
 
   <!-- Unified Header -->
   <div class="header-container" id="headerContainer">
-    <span class="header-brand">AgentOS</span>
+    <span class="header-brand">⬡ AgentOS</span>
     <div class="header-filters">
       <select id="projectSelect"><option value="">Loading...</option></select>
       <select id="agentFilter"><option value="">All Agents</option></select>
     </div>
+    <!-- Theme toggle: hidden on mobile via CSS, kept for desktop -->
     <button class="theme-toggle" id="themeToggle">&#9790;</button>
   </div>
+
+  <!-- Mobile Filter Bar (column tabs) -->
+  <div class="filter-bar" id="filterBar"></div>
 
   <!-- Legacy header for desktop compatibility (hidden on mobile) -->
   <header class="desktop-header">
