@@ -190,8 +190,32 @@
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     e.target.classList.add("active");
     state.currentView = e.target.dataset.view;
+    // Sync bottom nav
+    document.querySelectorAll(".bottom-nav-item").forEach(b => {
+      b.classList.toggle("active", b.dataset.view === state.currentView);
+    });
     render();
   });
+
+  // --- Bottom Navigation (mobile) ---
+  const bottomNav = document.getElementById("bottomNav");
+  if (bottomNav) {
+    bottomNav.querySelectorAll(".bottom-nav-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const view = btn.dataset.view;
+        state.currentView = view;
+        // Sync top tabs
+        document.querySelectorAll(".tab").forEach(t => {
+          t.classList.toggle("active", t.dataset.view === view);
+        });
+        // Sync bottom nav
+        bottomNav.querySelectorAll(".bottom-nav-item").forEach(b => {
+          b.classList.toggle("active", b.dataset.view === view);
+        });
+        render();
+      });
+    });
+  }
 
   // --- FAB (Floating Action Button) ---
   const fabContainer = document.getElementById("fabContainer");
@@ -1078,14 +1102,14 @@
     overlay.innerHTML = `<div class="modal">
       <div class="modal-drag-handle" role="button" aria-label="Drag to dismiss"></div>
       <button class="modal-collapse-btn" title="Collapse/Expand" aria-label="Collapse or expand">▼</button>
-      <div class="modal-content">${html}</div>
+      <div class="modal-content-scrollable">${html}</div>
     </div>`;
     document.body.appendChild(overlay);
     
     const modal = overlay.querySelector('.modal');
     const dragHandle = overlay.querySelector('.modal-drag-handle');
     const collapseBtn = overlay.querySelector('.modal-collapse-btn');
-    const content = overlay.querySelector('.modal-content');
+    const content = overlay.querySelector('.modal-content-scrollable');
     let isCollapsed = false;
     
     // Close on overlay click (but not when clicking modal content)
@@ -1395,4 +1419,123 @@
     await loadTasks();
     if (state.currentView === "board") renderBoard();
   }, 5000);
+
+  // ============================================
+  // MOBILE-FIRST ENHANCEMENTS
+  // ============================================
+
+  // --- Collapsible Columns ---
+  function initCollapsibleColumns() {
+    document.querySelectorAll('.column-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        const column = e.currentTarget.closest('.column');
+        if (!column) return;
+        column.classList.toggle('collapsed');
+      });
+    });
+  }
+
+  // Hook into renderBoard
+  const originalRenderBoard = renderBoard;
+  renderBoard = function() {
+    originalRenderBoard();
+    initCollapsibleColumns();
+  };
+
+  // --- Bottom Sheet Drag to Dismiss ---
+  let sheetStartY = 0;
+  let isDraggingSheet = false;
+  
+  function initBottomSheet() {
+    const panel = document.getElementById('detailPanel');
+    if (!panel) return;
+    
+    panel.addEventListener('touchstart', (e) => {
+      if (!panel.classList.contains('open')) return;
+      const touchY = e.touches[0].clientY;
+      const panelRect = panel.getBoundingClientRect();
+      if (touchY - panelRect.top < 80) {
+        sheetStartY = touchY;
+        isDraggingSheet = true;
+        panel.style.transition = 'none';
+      }
+    }, { passive: true });
+    
+    panel.addEventListener('touchmove', (e) => {
+      if (!isDraggingSheet) return;
+      const deltaY = e.touches[0].clientY - sheetStartY;
+      if (deltaY > 0) {
+        e.preventDefault();
+        panel.style.transform = `translateY(${deltaY}px)`;
+      }
+    }, { passive: false });
+    
+    panel.addEventListener('touchend', (e) => {
+      if (!isDraggingSheet) return;
+      isDraggingSheet = false;
+      panel.style.transition = '';
+      const deltaY = e.changedTouches[0].clientY - sheetStartY;
+      if (deltaY > 100) {
+        panel.style.transform = 'translateY(100%)';
+        setTimeout(() => {
+          panel.classList.remove('open');
+          panel.style.transform = '';
+          if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
+          currentDetailTaskId = null;
+        }, 200);
+      } else {
+        panel.style.transform = '';
+      }
+    });
+  }
+
+  // --- FAB Logic ---
+  function initFAB() {
+    const fabMain = document.getElementById('fabMain');
+    const fabMenu = document.getElementById('fabMenu');
+    if (!fabMain) return;
+    
+    let isOpen = false;
+    fabMain.addEventListener('click', () => {
+      isOpen = !isOpen;
+      fabMenu.classList.toggle('open', isOpen);
+      fabMain.textContent = isOpen ? '✕' : '+';
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.fab-container') && isOpen) {
+        isOpen = false;
+        fabMenu.classList.remove('open');
+        fabMain.textContent = '+';
+      }
+    });
+    
+    const fabNewProject = document.getElementById('fabNewProject');
+    const fabNewTask = document.getElementById('fabNewTask');
+    
+    if (fabNewProject) {
+      fabNewProject.addEventListener('click', () => {
+        document.getElementById('newProjectBtn')?.click();
+        isOpen = false;
+        fabMenu.classList.remove('open');
+        fabMain.textContent = '+';
+      });
+    }
+    
+    if (fabNewTask) {
+      fabNewTask.addEventListener('click', () => {
+        showTaskModal('backlog');
+        isOpen = false;
+        fabMenu.classList.remove('open');
+        fabMain.textContent = '+';
+      });
+    }
+  }
+
+  // Initialize mobile features
+  document.addEventListener('DOMContentLoaded', () => {
+    initFAB();
+    initBottomSheet();
+  });
 })();

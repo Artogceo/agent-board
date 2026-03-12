@@ -2280,3 +2280,95 @@ body {
 .board {
   overscroll-behavior-y: auto;
 }
+
+/* ===== BOTTOM NAVIGATION (mobile only) ===== */
+.bottom-nav {
+  display: none; /* hidden on desktop */
+}
+
+/* Modal content scrollable wrapper */
+.modal-content-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  /* Bottom Navigation Bar */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(60px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 300;
+    justify-content: space-around;
+    align-items: stretch;
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    padding: 8px 4px;
+    min-height: 60px;
+  }
+
+  .bottom-nav-item.active {
+    color: var(--accent);
+  }
+
+  .bottom-nav-item svg {
+    flex-shrink: 0;
+  }
+
+  /* Adjust board padding to not hide behind bottom nav */
+  .board {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .stats-view, .agent-grid {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+
+  /* Hide top tabs on mobile (replaced by bottom nav) */
+  .tabs {
+    display: none !important;
+  }
+
+  /* FAB above bottom nav */
+  .fab-container {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+
+  /* Detail panel open animation fix */
+  .detail-panel.open {
+    transform: translateY(0) !important;
+  }
+
+  /* Modal content scrollable on mobile */
+  .modal-content-scrollable {
+    max-height: none !important;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+
+  /* Body should scroll vertically */
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+}
