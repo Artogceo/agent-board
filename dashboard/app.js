@@ -16,39 +16,94 @@
       } else {
         const overlay = document.getElementById("pinOverlay");
         if (overlay) overlay.classList.remove("hidden");
+        document.body.classList.add("pin-active");
       }
     }).catch(() => {
       const overlay = document.getElementById("pinOverlay");
       if (overlay) overlay.classList.remove("hidden");
+      document.body.classList.add("pin-active");
     });
   }
   function setupPinForm() {
-    const btn = document.getElementById("pinSubmit");
-    const input = document.getElementById("pinInput");
+    let pinValue = "";
+    const MAX_DIGITS = 4;
+    const overlay = document.getElementById("pinOverlay");
+    const dots = document.querySelectorAll(".pin-dot");
+    const okBtn = document.getElementById("pinSubmit");
     const errEl = document.getElementById("pinError");
-    if (!btn || !input) return;
+
+    function updateDots() {
+      dots.forEach((d, i) => {
+        d.classList.toggle("filled", i < pinValue.length);
+        d.classList.remove("error");
+      });
+      if (okBtn) okBtn.classList.toggle("active", pinValue.length === MAX_DIGITS);
+    }
+    function addDigit(d) {
+      if (pinValue.length >= MAX_DIGITS) return;
+      pinValue += d;
+      updateDots();
+      if (pinValue.length === MAX_DIGITS) tryUnlock();
+    }
+    function backspace() {
+      if (!pinValue.length) return;
+      pinValue = pinValue.slice(0, -1);
+      updateDots();
+    }
     function tryUnlock() {
-      const pin = input.value.trim();
-      if (!pin) return;
+      if (!pinValue) return;
       fetch("/api/auth/pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin })
+        body: JSON.stringify({ pin: pinValue })
       }).then(r => r.json()).then(data => {
         if (data.ok) {
           sessionStorage.setItem(PIN_SESSION_KEY, "1");
-          const overlay = document.getElementById("pinOverlay");
           if (overlay) overlay.classList.add("hidden");
+          document.body.classList.remove("pin-active");
           if (errEl) errEl.classList.add("hidden");
         } else {
+          const dotsRow = document.getElementById("pinDots");
+          dots.forEach(d => d.classList.add("error"));
+          if (dotsRow) {
+            dotsRow.classList.remove("shake");
+            void dotsRow.offsetWidth;
+            dotsRow.classList.add("shake");
+          }
           if (errEl) errEl.classList.remove("hidden");
-          input.value = "";
-          input.focus();
+          pinValue = "";
+          setTimeout(() => {
+            updateDots();
+            dotsRow && dotsRow.classList.remove("shake");
+          }, 500);
         }
-      });
+      }).catch(() => { pinValue = ""; updateDots(); });
     }
-    btn.addEventListener("click", tryUnlock);
-    input.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+
+    document.querySelectorAll(".pin-key[data-digit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        btn.classList.add("pressed");
+        setTimeout(() => btn.classList.remove("pressed"), 100);
+        addDigit(btn.dataset.digit);
+      });
+    });
+    const bkBtn = document.getElementById("pinBackspace");
+    if (bkBtn) bkBtn.addEventListener("click", () => {
+      bkBtn.classList.add("pressed");
+      setTimeout(() => bkBtn.classList.remove("pressed"), 100);
+      backspace();
+    });
+    if (okBtn) okBtn.addEventListener("click", () => {
+      if (pinValue.length === MAX_DIGITS) tryUnlock();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (!overlay || overlay.classList.contains("hidden")) return;
+      if (/^[0-9]$/.test(e.key)) addDigit(e.key);
+      else if (e.key === "Backspace") backspace();
+      else if (e.key === "Enter") tryUnlock();
+    });
+    if (overlay) overlay.addEventListener("click", e => e.stopPropagation());
+    updateDots();
   }
   document.addEventListener("DOMContentLoaded", () => { setupPinForm(); checkPin(); });
   // --- End PIN Protection ---
