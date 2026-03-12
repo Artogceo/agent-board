@@ -1022,3 +1022,18 @@ header h1 .brand-sub {
 .stats-table th, .stats-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9em; }
 .stats-table th { background: var(--surface-hover); font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75em; letter-spacing: 0.05em; }
 .stats-table tr:last-child td { border-bottom: none; }
+
+.btn-delete {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-delete:hover {
+  background: var(--danger);
+  color: #fff;
+}
