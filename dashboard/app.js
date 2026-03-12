@@ -90,16 +90,16 @@
     if (saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches)) {
       document.documentElement.setAttribute("data-theme", "dark");
       themeToggle.textContent = "\u2600";
-      themeToggle.setAttribute("data-tooltip", "Светлая тема");
+      themeToggle.setAttribute("data-tooltip", "Переключить тему");
     } else {
-      themeToggle.setAttribute("data-tooltip", "Тёмная тема");
+      themeToggle.setAttribute("data-tooltip", "Переключить тему");
     }
   }
   themeToggle.addEventListener("click", () => {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
     themeToggle.textContent = isDark ? "\u263E" : "\u2600";
-    themeToggle.setAttribute("data-tooltip", isDark ? "Тёмная тема" : "Светлая тема");
+    themeToggle.setAttribute("data-tooltip", "Переключить тему");
     localStorage.setItem("ab-theme", isDark ? "light" : "dark");
   });
   initTheme();

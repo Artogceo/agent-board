@@ -144,7 +144,7 @@ header h1 .brand-sub {
 .theme-toggle::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--card-bg, #1e293b);
