@@ -255,8 +255,7 @@ header h1 .brand-sub {
 }
 
 .card.dragging {
-  opacity: 0.5;
-  transform: rotate(2deg);
+  opacity: 0.4;
 }
 
 .card-title {

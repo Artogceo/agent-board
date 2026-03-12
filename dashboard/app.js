@@ -407,6 +407,7 @@
   let draggedId = null;
 
   function initDrag(card) {
+    // Desktop: HTML5 drag & drop
     card.addEventListener("dragstart", (e) => {
       draggedId = card.dataset.id;
       card.classList.add("dragging");
@@ -414,8 +415,74 @@
     });
     card.addEventListener("dragend", () => {
       card.classList.remove("dragging");
+      card.style.touchAction = "";
       draggedId = null;
     });
+
+    // Mobile: touch drag via Pointer Events
+    let isDragging = false;
+    let ghost = null;
+    let startX = 0, startY = 0;
+    let touchTimer = null;
+
+    card.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") return;
+      startX = e.clientX;
+      startY = e.clientY;
+      touchTimer = setTimeout(() => {
+        isDragging = true;
+        draggedId = card.dataset.id;
+        ghost = card.cloneNode(true);
+        const rect = card.getBoundingClientRect();
+        ghost.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${card.offsetWidth}px;opacity:0.75;pointer-events:none;z-index:9999;transform:rotate(2deg) scale(1.03);transition:none;`;
+        document.body.appendChild(ghost);
+        card.classList.add("dragging");
+        card.style.touchAction = "none";
+        navigator.vibrate && navigator.vibrate(30);
+      }, 200);
+    });
+
+    card.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "mouse") return;
+      if (!isDragging) {
+        if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) clearTimeout(touchTimer);
+        return;
+      }
+      e.preventDefault();
+      if (ghost) {
+        ghost.style.top = (e.clientY - ghost.offsetHeight / 2) + "px";
+        ghost.style.left = (e.clientX - ghost.offsetWidth / 2) + "px";
+        ghost.style.display = "none";
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        ghost.style.display = "";
+        document.querySelectorAll(".col-body").forEach(c => c.classList.remove("drag-over"));
+        const colBody = el && el.closest(".col-body");
+        if (colBody) colBody.classList.add("drag-over");
+      }
+    });
+
+    const endDrag = async (e) => {
+      if (e.pointerType === "mouse") return;
+      clearTimeout(touchTimer);
+      if (!isDragging) return;
+      isDragging = false;
+      if (ghost) { ghost.remove(); ghost = null; }
+      card.classList.remove("dragging");
+      card.style.touchAction = "";
+      document.querySelectorAll(".col-body").forEach(c => c.classList.remove("drag-over"));
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const colBody = el && el.closest(".col-body");
+      const newCol = colBody && colBody.dataset.col;
+      if (newCol && draggedId) {
+        await api("/tasks/" + draggedId + "/move", { method: "POST", body: JSON.stringify({ column: newCol }) });
+        await loadTasks();
+        render();
+      }
+      draggedId = null;
+    };
+
+    card.addEventListener("pointerup", endDrag);
+    card.addEventListener("pointercancel", endDrag);
   }
 
   function initDrop(colBody) {
@@ -549,7 +616,7 @@
           ${task.tags.map((t) => `<span class="badge badge-tag">${esc(t)}</span>`).join("")}
         </div>
         ${task.description ? `<div class="detail-desc">${esc(task.description)}</div>` : ""}
-        <div class="detail-header-actions">${escalateBtn}${archiveBtn}</div>
+        <div class="detail-header-actions">${escalateBtn}${archiveBtn}${deleteBtn}</div>
       </div>
       <div class="timeline-container" id="timelineMessages"></div>
       <div class="timeline-input">
