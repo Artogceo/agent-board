@@ -1,6 +1,58 @@
 // Agent Board - Dashboard App
 (function () {
   const API = "/api";
+
+  // --- PIN Protection ---
+  const PIN_SESSION_KEY = "ab-pin-unlocked";
+  function checkPin() {
+    if (sessionStorage.getItem(PIN_SESSION_KEY) === "1") return;
+    fetch("/api/auth/pin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "" })
+    }).then(r => r.json()).then(data => {
+      if (data.ok) {
+        sessionStorage.setItem(PIN_SESSION_KEY, "1");
+      } else {
+        const overlay = document.getElementById("pinOverlay");
+        if (overlay) overlay.classList.remove("hidden");
+      }
+    }).catch(() => {
+      const overlay = document.getElementById("pinOverlay");
+      if (overlay) overlay.classList.remove("hidden");
+    });
+  }
+  function setupPinForm() {
+    const btn = document.getElementById("pinSubmit");
+    const input = document.getElementById("pinInput");
+    const errEl = document.getElementById("pinError");
+    if (!btn || !input) return;
+    function tryUnlock() {
+      const pin = input.value.trim();
+      if (!pin) return;
+      fetch("/api/auth/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      }).then(r => r.json()).then(data => {
+        if (data.ok) {
+          sessionStorage.setItem(PIN_SESSION_KEY, "1");
+          const overlay = document.getElementById("pinOverlay");
+          if (overlay) overlay.classList.add("hidden");
+          if (errEl) errEl.classList.add("hidden");
+        } else {
+          if (errEl) errEl.classList.remove("hidden");
+          input.value = "";
+          input.focus();
+        }
+      });
+    }
+    btn.addEventListener("click", tryUnlock);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+  }
+  document.addEventListener("DOMContentLoaded", () => { setupPinForm(); checkPin(); });
+  // --- End PIN Protection ---
+
   const COLUMNS = ["backlog", "todo", "doing", "review", "rework", "done", "failed"];
   const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", rework: "Rework", done: "Done", failed: "Failed" };
 

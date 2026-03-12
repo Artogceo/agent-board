@@ -21,6 +21,21 @@ import {
 
 const router = Router();
 
+// Dashboard PIN verification (no API key required)
+router.post("/auth/pin", (req: Request, res: Response) => {
+  const pin = process.env.DASHBOARD_PIN;
+  if (!pin) {
+    res.json({ ok: true });
+    return;
+  }
+  const { pin: inputPin } = req.body as { pin?: string };
+  if (inputPin && inputPin === pin) {
+    res.json({ ok: true });
+  } else {
+    res.status(403).json({ ok: false, error: "Wrong PIN" });
+  }
+});
+
 // --- API Key Authentication Middleware ---
 
 interface ApiKey {

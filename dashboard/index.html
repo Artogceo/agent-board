@@ -7,6 +7,24 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- PIN Overlay -->
+  <div id="pinOverlay" class="pin-overlay hidden">
+    <div class="pin-card">
+      <div class="pin-logo">
+        <svg viewBox="0 0 24 24" fill="none" width="40" height="40">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" opacity="0.3"/>
+          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2 class="pin-title">AgentOS Board</h2>
+      <p class="pin-subtitle">Enter PIN to continue</p>
+      <input type="password" id="pinInput" class="pin-input" maxlength="10" placeholder="••••" autocomplete="off" />
+      <button id="pinSubmit" class="pin-btn">Unlock</button>
+      <p id="pinError" class="pin-error hidden">Incorrect PIN</p>
+    </div>
+  </div>
+
   <header>
     <h1 class="brand">
       <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
