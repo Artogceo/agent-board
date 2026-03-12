@@ -90,16 +90,16 @@
     if (saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches)) {
       document.documentElement.setAttribute("data-theme", "dark");
       themeToggle.textContent = "\u2600";
-      themeToggle.setAttribute("data-tooltip", "Переключить тему");
+      themeToggle.setAttribute("data-tooltip", "Switch theme");
     } else {
-      themeToggle.setAttribute("data-tooltip", "Переключить тему");
+      themeToggle.setAttribute("data-tooltip", "Switch theme");
     }
   }
   themeToggle.addEventListener("click", () => {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
     themeToggle.textContent = isDark ? "\u263E" : "\u2600";
-    themeToggle.setAttribute("data-tooltip", "Переключить тему");
+    themeToggle.setAttribute("data-tooltip", "Switch theme");
     localStorage.setItem("ab-theme", isDark ? "light" : "dark");
   });
   initTheme();
@@ -193,6 +193,103 @@
     render();
   });
 
+  // --- FAB (Floating Action Button) ---
+  const fabContainer = document.getElementById("fabContainer");
+  const fabMain = document.getElementById("fabMain");
+  const fabMenu = document.getElementById("fabMenu");
+  const fabNewProject = document.getElementById("fabNewProject");
+  const fabNewTask = document.getElementById("fabNewTask");
+  let fabOpen = false;
+
+  function toggleFab() {
+    fabOpen = !fabOpen;
+    fabMenu.classList.toggle("open", fabOpen);
+    fabMain.textContent = fabOpen ? "\u2715" : "+";
+    fabMain.style.transform = fabOpen ? "rotate(45deg)" : "rotate(0deg)";
+  }
+
+  fabMain.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleFab();
+  });
+
+  fabNewProject.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleFab();
+    document.getElementById("newProjectBtn").click();
+  });
+
+  fabNewTask.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleFab();
+    showTaskModal("backlog");
+  });
+
+  // Close FAB when clicking outside
+  document.addEventListener("click", (e) => {
+    if (fabOpen && !fabContainer.contains(e.target)) {
+      toggleFab();
+    }
+  });
+
+  // --- Pull to refresh ---
+  let ptrStartY = 0;
+  let ptrPulling = false;
+  let ptrThreshold = 80;
+  const ptrIndicator = document.getElementById("ptrIndicator");
+  const boardView = document.getElementById("boardView");
+
+  function initPullToRefresh() {
+    // Only on mobile
+    if (window.matchMedia('(min-width: 769px)').matches) return;
+
+    boardView.addEventListener('touchstart', (e) => {
+      if (boardView.scrollTop === 0) {
+        ptrStartY = e.touches[0].clientY;
+        ptrPulling = true;
+      }
+    }, { passive: true });
+
+    boardView.addEventListener('touchmove', (e) => {
+      if (!ptrPulling) return;
+      
+      const y = e.touches[0].clientY;
+      const diff = y - ptrStartY;
+      
+      if (diff > 0 && boardView.scrollTop <= 0) {
+        e.preventDefault();
+        const pullDistance = Math.min(diff * 0.5, ptrThreshold + 20);
+        ptrIndicator.style.transform = `translateY(${pullDistance}px)`;
+        
+        if (pullDistance >= ptrThreshold) {
+          ptrIndicator.querySelector('span').textContent = 'Release to refresh';
+          ptrIndicator.classList.add('pulling');
+        } else {
+          ptrIndicator.querySelector('span').textContent = 'Pull to refresh';
+          ptrIndicator.classList.remove('pulling');
+        }
+      }
+    }, { passive: false });
+
+    boardView.addEventListener('touchend', async () => {
+      if (!ptrPulling) return;
+      ptrPulling = false;
+      
+      const currentTransform = ptrIndicator.style.transform;
+      const currentPull = parseInt(currentTransform.replace('translateY(', '').replace('px)', '')) || 0;
+      
+      if (currentPull >= ptrThreshold) {
+        ptrIndicator.classList.add('refreshing');
+        ptrIndicator.querySelector('span').textContent = 'Refreshing...';
+        await refresh();
+      }
+      
+      ptrIndicator.style.transform = '';
+      ptrIndicator.classList.remove('pulling', 'refreshing');
+      ptrIndicator.querySelector('span').textContent = 'Pull to refresh';
+    });
+  }
+
   // --- Render ---
   function render() {
     const boardView = document.getElementById("boardView");
@@ -207,6 +304,7 @@
       boardView.classList.remove("hidden");
       renderAgentFilter();
       renderBoard();
+      initPullToRefresh();
     } else if (state.currentView === "agents") {
       agentsView.classList.remove("hidden");
       renderAgents();
@@ -313,6 +411,11 @@
     board.querySelectorAll(".card").forEach(initDrag);
     board.querySelectorAll(".column-body").forEach(initDrop);
 
+    // Swipe actions on cards (mobile)
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      board.querySelectorAll(".card").forEach(initSwipeActions);
+    }
+
     // Delete task buttons on cards
     board.querySelectorAll(".card-delete-btn").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
@@ -392,7 +495,7 @@
       <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}">
         <div class="card-header-row">
           <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
-          <button class="card-delete-btn" data-delete-id="${task.id}" title="Delete task">\uD83D\uDDD1</button>
+          <button class="card-delete-btn" data-delete-id="${task.id}" title="Delete task" aria-label="Delete">\uD83D\uDDD1</button>
         </div>
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
         <div class="card-meta">
@@ -422,6 +525,82 @@
           <div class="caps">${a.capabilities.map((c) => `<span class="badge badge-tag">${esc(c)}</span>`).join("")}</div>
         </div>`;
     }).join("");
+  }
+
+  // --- Swipe Actions (Mobile) ---
+  function initSwipeActions(card) {
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let isSwiping = false;
+    const taskId = card.dataset.id;
+    const task = state.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    card.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      isSwiping = true;
+      card.style.transition = 'none';
+    }, { passive: true });
+
+    card.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      const diffX = x - startX;
+      const diffY = y - startY;
+      
+      // Only handle horizontal swipes
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        e.preventDefault();
+        currentX = diffX;
+        
+        // Limit swipe distance
+        const clampedX = Math.max(-100, Math.min(100, diffX));
+        card.style.transform = `translateX(${clampedX}px)`;
+        
+        // Add visual feedback classes
+        card.classList.toggle('swiping-left', diffX < -50);
+        card.classList.toggle('swiping-right', diffX > 50);
+      }
+    }, { passive: false });
+
+    card.addEventListener('touchend', async () => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      card.style.transition = 'transform 0.2s ease';
+      card.classList.remove('swiping-left', 'swiping-right');
+      
+      // Check if swipe was far enough to trigger action
+      if (currentX < -100 && task.column !== 'done') {
+        // Swipe left - complete task
+        card.style.transform = 'translateX(-100%)';
+        setTimeout(async () => {
+          await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "done" }) });
+          await loadTasks();
+          render();
+        }, 200);
+      } else if (currentX > 100) {
+        // Swipe right - delete with confirmation
+        card.style.transform = 'translateX(100%)';
+        if (confirm(`Delete "${task.title}"?`)) {
+          setTimeout(async () => {
+            await api("/tasks/" + taskId, { method: "DELETE" });
+            await loadTasks();
+            render();
+          }, 200);
+        } else {
+          card.style.transform = 'translateX(0)';
+        }
+      } else {
+        // Snap back
+        card.style.transform = 'translateX(0)';
+      }
+      
+      currentX = 0;
+    });
   }
 
   // --- Drag & Drop ---
@@ -541,6 +720,59 @@
     currentDetailTaskId = null;
   });
 
+  // Swipe to close detail panel (mobile)
+  function initDetailSwipe() {
+    if (window.matchMedia('(min-width: 769px)').matches) return;
+    
+    let startY = 0;
+    let currentY = 0;
+    let isSwiping = false;
+    
+    detailPanel.addEventListener('touchstart', (e) => {
+      // Only allow swipe from drag handle area or header
+      if (e.target.closest('.detail-header') || e.clientY < 100) {
+        startY = e.touches[0].clientY;
+        isSwiping = true;
+        detailPanel.classList.add('swiping');
+      }
+    }, { passive: true });
+    
+    detailPanel.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      
+      currentY = e.touches[0].clientY;
+      const diff = currentY - startY;
+      
+      if (diff > 0) {
+        detailPanel.style.transform = `translateY(${diff}px)`;
+      }
+    }, { passive: true });
+    
+    detailPanel.addEventListener('touchend', () => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      detailPanel.classList.remove('swiping');
+      
+      const diff = currentY - startY;
+      
+      if (diff > 100) {
+        // Close
+        detailPanel.style.transform = 'translateY(100%)';
+        setTimeout(() => {
+          detailPanel.classList.remove('open');
+          detailPanel.style.transform = '';
+          if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
+          currentDetailTaskId = null;
+        }, 200);
+      } else {
+        // Snap back
+        detailPanel.style.transform = '';
+      }
+    });
+  }
+  
+  initDetailSwipe();
+
   // --- Timeline helpers ---
   function getMessageType(c) {
     if (c.author === "system") return "system";
@@ -640,6 +872,28 @@
         ${task.description ? `<div class="detail-desc">${esc(task.description)}</div>` : ""}
         <div class="detail-header-actions">${escalateBtn}${archiveBtn}${deleteBtn}</div>
       </div>
+      ${task.technicalSpec ? `
+      <div class="detail-spec-section">
+        <div class="detail-spec-toggle" id="toggleSpec">
+          <span class="detail-spec-icon">📋</span>
+          <span class="detail-spec-label">Техническое задание (ТЗ)</span>
+          <span class="detail-spec-arrow">▼</span>
+        </div>
+        <div class="detail-spec-body" id="specBody">
+          <pre class="detail-spec-content">${esc(task.technicalSpec)}</pre>
+        </div>
+      </div>` : ""}
+      ${task.completionReport ? `
+      <div class="detail-spec-section detail-report-section">
+        <div class="detail-spec-toggle" id="toggleReport">
+          <span class="detail-spec-icon">📊</span>
+          <span class="detail-spec-label">Отчёт о выполнении</span>
+          <span class="detail-spec-arrow">▼</span>
+        </div>
+        <div class="detail-spec-body" id="reportBody">
+          <pre class="detail-spec-content">${esc(task.completionReport)}</pre>
+        </div>
+      </div>` : ""}
       <div class="timeline-container" id="timelineMessages"></div>
       <div class="timeline-input">
         <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
@@ -659,6 +913,32 @@
     `;
 
     renderTimeline(task.comments);
+
+    // Toggle technicalSpec section
+    const specToggle = document.getElementById("toggleSpec");
+    if (specToggle) {
+      specToggle.addEventListener("click", () => {
+        const body = document.getElementById("specBody");
+        const arrow = specToggle.querySelector(".detail-spec-arrow");
+        if (body) {
+          body.classList.toggle("collapsed");
+          if (arrow) arrow.textContent = body.classList.contains("collapsed") ? "▶" : "▼";
+        }
+      });
+    }
+
+    // Toggle completionReport section
+    const reportToggle = document.getElementById("toggleReport");
+    if (reportToggle) {
+      reportToggle.addEventListener("click", () => {
+        const body = document.getElementById("reportBody");
+        const arrow = reportToggle.querySelector(".detail-spec-arrow");
+        if (body) {
+          body.classList.toggle("collapsed");
+          if (arrow) arrow.textContent = body.classList.contains("collapsed") ? "▶" : "▼";
+        }
+      });
+    }
 
     // Send comment
     async function sendComment() {
@@ -796,20 +1076,24 @@
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.innerHTML = `<div class="modal">
-      <div class="modal-drag-handle"></div>
-      <button class="modal-collapse-btn" title="Collapse/Expand">▼</button>
-      ${html}
+      <div class="modal-drag-handle" role="button" aria-label="Drag to dismiss"></div>
+      <button class="modal-collapse-btn" title="Collapse/Expand" aria-label="Collapse or expand">▼</button>
+      <div class="modal-content">${html}</div>
     </div>`;
     document.body.appendChild(overlay);
     
     const modal = overlay.querySelector('.modal');
     const dragHandle = overlay.querySelector('.modal-drag-handle');
     const collapseBtn = overlay.querySelector('.modal-collapse-btn');
+    const content = overlay.querySelector('.modal-content');
     let isCollapsed = false;
     
     // Close on overlay click (but not when clicking modal content)
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.remove();
+      if (e.target === overlay) {
+        modal.classList.add('closing');
+        setTimeout(() => overlay.remove(), 300);
+      }
     });
     
     // Collapse/expand functionality
@@ -825,10 +1109,15 @@
     let touchStartY = 0;
     let touchStartX = 0;
     let isSwiping = false;
+    let startTime = 0;
     
     const handleTouchStart = (e) => {
+      // Don't handle if touching input, textarea, or select
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      
       touchStartY = e.touches[0].clientY;
       touchStartX = e.touches[0].clientX;
+      startTime = Date.now();
       isSwiping = true;
       modal.style.transition = 'none';
     };
@@ -841,8 +1130,8 @@
       const deltaY = touchY - touchStartY;
       const deltaX = touchX - touchStartX;
       
-      // Only handle vertical swipes (more vertical than horizontal)
-      if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
+      // Only handle vertical swipes downward from near the top
+      if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0 && touchStartY < 100) {
         // Swiping down
         modal.style.transform = `translateY(${deltaY}px)`;
         overlay.style.background = `rgba(0,0,0,${0.6 - deltaY / 800})`;
@@ -855,11 +1144,13 @@
       
       const touchY = e.changedTouches[0].clientY;
       const deltaY = touchY - touchStartY;
+      const deltaTime = Date.now() - startTime;
       
       modal.style.transition = '';
+      overlay.style.transition = '';
       
       // If swiped down more than 100px or with velocity, close the modal
-      if (deltaY > 100) {
+      if (deltaY > 100 || (deltaY > 50 && deltaTime < 200)) {
         modal.style.transform = `translateY(100vh)`;
         overlay.style.background = 'rgba(0,0,0,0)';
         setTimeout(() => overlay.remove(), 300);
@@ -870,18 +1161,11 @@
       }
     };
     
-    // Attach swipe handlers to drag handle and modal
+    // Attach swipe handlers to drag handle
     if (dragHandle) {
       dragHandle.addEventListener('touchstart', handleTouchStart, { passive: true });
       dragHandle.addEventListener('touchmove', handleTouchMove, { passive: true });
       dragHandle.addEventListener('touchend', handleTouchEnd);
-    }
-    
-    // Also allow swiping from anywhere on the modal background on mobile
-    if (window.matchMedia('(max-width: 768px)').matches) {
-      modal.addEventListener('touchstart', handleTouchStart, { passive: true });
-      modal.addEventListener('touchmove', handleTouchMove, { passive: true });
-      modal.addEventListener('touchend', handleTouchEnd);
     }
     
     // Handle keyboard visibility changes (prevent closing when keyboard opens)
@@ -890,23 +1174,36 @@
     
     const handleResize = () => {
       const heightDiff = originalWindowHeight - window.innerHeight;
-      keyboardOpen = heightDiff > 150; // Keyboard typically takes more than 150px
+      keyboardOpen = heightDiff > 150;
       
       if (keyboardOpen && window.matchMedia('(max-width: 768px)').matches) {
-        // Adjust modal position when keyboard opens
+        document.body.classList.add('keyboard-open');
         modal.style.maxHeight = '60vh';
-        modal.style.transform = 'translateY(0)';
       } else {
-        modal.style.maxHeight = '';
+        document.body.classList.remove('keyboard-open');
+        if (!isCollapsed) {
+          modal.style.maxHeight = '';
+        }
       }
     };
     
     window.addEventListener('resize', handleResize);
     
+    // Close on Escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        modal.classList.add('closing');
+        setTimeout(() => overlay.remove(), 300);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    
     // Cleanup on remove
     const originalRemove = overlay.remove.bind(overlay);
     overlay.remove = () => {
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('keydown', handleEscape);
+      document.body.classList.remove('keyboard-open');
       originalRemove();
     };
     
@@ -917,14 +1214,14 @@
     const overlay = showModal(`
       <h2>New Project</h2>
       <label>Name</label>
-      <input type="text" id="modalProjName" autofocus>
+      <input type="text" id="modalProjName" autofocus autocomplete="off">
       <label>Owner</label>
-      <input type="text" id="modalProjOwner" placeholder="e.g. agency">
+      <input type="text" id="modalProjOwner" placeholder="e.g. agency" autocomplete="off">
       <label>Description</label>
-      <textarea id="modalProjDesc"></textarea>
+      <textarea id="modalProjDesc" rows="2"></textarea>
       <div class="modal-actions">
-        <button class="btn" id="modalCancel">Cancel</button>
-        <button class="btn btn-primary" id="modalConfirm">Create</button>
+        <button class="btn" id="modalCancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="modalConfirm" type="button">Create</button>
       </div>
     `);
     overlay.querySelector("#modalCancel").addEventListener("click", () => overlay.remove());

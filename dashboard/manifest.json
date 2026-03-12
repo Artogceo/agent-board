@@ -33,5 +33,9 @@
       "description": "Create a new task",
       "url": "/?action=new-task"
     }
-  ]
+  ],
+  "id": "/",
+  "dir": "ltr",
+  "lang": "en",
+  "display_override": ["standalone", "fullscreen"]
 }

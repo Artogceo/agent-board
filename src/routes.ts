@@ -178,6 +178,23 @@ function loadTemplateFromDir(name: string): any[] | null {
 const OPENCLAW_HOOK_URL = process.env.OPENCLAW_HOOK_URL || "http://localhost:18789/hooks/agent";
 const OPENCLAW_HOOK_TOKEN = process.env.OPENCLAW_HOOK_TOKEN || "";
 
+// Telegram direct notification (org bot → owner DM)
+const TG_BOT_TOKEN = process.env.TELEGRAM_ORG_BOT_TOKEN || "8638055703:AAF5oMQaWUFqX65xwQUbWO7Q8d0TPs8Rgms";
+const TG_CHAT_ID = process.env.TELEGRAM_OWNER_CHAT_ID || "753283";
+
+async function sendTelegramDirect(text: string): Promise<void> {
+  if (!TG_BOT_TOKEN || !TG_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: TG_CHAT_ID, text, parse_mode: "HTML" }),
+    });
+  } catch (e) {
+    console.error("[telegram] sendTelegramDirect failed:", e);
+  }
+}
+
 function getHookToken(): string {
   return process.env.OPENCLAW_HOOK_TOKEN || OPENCLAW_HOOK_TOKEN;
 }
@@ -833,6 +850,25 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
         : `Задача "${moveResult.task.title}" готова к review`;
       const reviewEvent = moveResult.task.planningMode ? "task.tz-review" : "task.review";
       notifyAgent(steveTask, reviewMsg, reviewEvent).catch(() => {});
+
+      // Direct Telegram push to owner (bypasses OpenClaw chatId issue)
+      const executor = moveResult.task.assignee || "агент";
+      sendTelegramDirect(
+        `✅ <b>Задача выполнена</b>\n\n` +
+        `📌 <b>${moveResult.task.title}</b>\n` +
+        `🆔 ${moveResult.task.id}\n` +
+        `👤 Исполнитель: ${executor}\n\n` +
+        `Задача готова к review. Проверьте дашборд.`
+      ).catch(() => {});
+    }
+
+    // Notify when task moves to done
+    if (column === "done") {
+      sendTelegramDirect(
+        `🎉 <b>Задача закрыта</b>\n\n` +
+        `📌 <b>${moveResult.task.title}</b>\n` +
+        `🆔 ${moveResult.task.id}`
+      ).catch(() => {});
     }
   }
 

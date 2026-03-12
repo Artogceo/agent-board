@@ -12,11 +12,16 @@
   <!-- iOS Splash Screen -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='24' fill='%236366f1'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='90' fill='white'%3E⬡%3C/text%3E%3C/svg%3E">
   
-  <!-- iOS Splash Screens -->
+  <!-- iOS Splash Screens for various devices -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 956'%3E%3Crect width='440' height='956' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='120' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
   <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 430 932'%3E%3Crect width='430' height='932' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='120' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 414 896'%3E%3Crect width='414' height='896' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='110' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 414 896'%3E%3Crect width='414' height='896' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='110' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
   <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 393 852'%3E%3Crect width='393' height='852' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='110' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
   <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 844'%3E%3Crect width='390' height='844' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='110' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
   <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 375 812'%3E%3Crect width='375' height='812' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='100' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 375 667'%3E%3Crect width='375' height='667' fill='%230f172a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='90' fill='%236366f1'%3E⬡%3C/text%3E%3C/svg%3E">
+  
   <meta name="theme-color" content="#6366f1">
   <link rel="manifest" href="/manifest.json">
   <title>AgentOS</title>
@@ -35,7 +40,7 @@
       </div>
       <h2 class="pin-title">AgentOS Board</h2>
       <p class="pin-subtitle">Enter PIN to continue</p>
-      <input type="password" id="pinInput" class="pin-input" maxlength="10" placeholder="••••" autocomplete="off" />
+      <input type="password" id="pinInput" class="pin-input" maxlength="10" placeholder="••••" autocomplete="off" inputmode="numeric" />
       <button id="pinSubmit" class="pin-btn">Unlock</button>
       <p id="pinError" class="pin-error hidden">Incorrect PIN</p>
     </div>
@@ -73,8 +78,14 @@
     <label class="archive-toggle" id="archiveToggleLabel"><input type="checkbox" id="archiveToggle"> Show archived</label>
   </div>
 
+  <!-- Pull to refresh indicator -->
+  <div class="ptr-indicator" id="ptrIndicator">
+    <div class="ptr-spinner"></div>
+    <span>Pull to refresh</span>
+  </div>
+
   <!-- Kanban view -->
-  <div class="board" id="boardView"></div>
+  <div class="board ptr-container" id="boardView"></div>
 
   <!-- Agents view -->
   <div class="agent-grid hidden" id="agentsView"></div>
@@ -84,12 +95,55 @@
 
   <!-- Task detail panel -->
   <div class="detail-panel" id="detailPanel">
-    <button class="detail-close" id="closeDetail">&#x2715;</button>
+    <button class="detail-close" id="closeDetail" aria-label="Close">&#x2715;</button>
     <div id="detailContent"></div>
+  </div>
+
+  <!-- FAB (Floating Action Button) - Mobile only -->
+  <div class="fab-container" id="fabContainer">
+    <div class="fab-menu" id="fabMenu">
+      <div class="fab-item" id="fabNewProject">
+        <span class="fab-item-label">New Project</span>
+        <button class="fab-item-btn" aria-label="New Project">📁</button>
+      </div>
+      <div class="fab-item" id="fabNewTask">
+        <span class="fab-item-label">New Task</span>
+        <button class="fab-item-btn" aria-label="New Task">✏️</button>
+      </div>
+    </div>
+    <button class="fab" id="fabMain" aria-label="Add">+</button>
   </div>
 
   <!-- Hidden file input for attachment upload -->
   <input type="file" id="attachFileInput" accept="image/*,.pdf" style="display:none">
+
+  <!-- Bottom Navigation Bar (mobile only) -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="bottom-nav-item active" data-view="board" aria-label="Tasks">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      <span>Tasks</span>
+    </button>
+    <button class="bottom-nav-item" data-view="agents" aria-label="Agents">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+        <circle cx="19" cy="11" r="2"/>
+        <path d="M23 21v-1a3 3 0 0 0-3-3h-1"/>
+      </svg>
+      <span>Agents</span>
+    </button>
+    <button class="bottom-nav-item" data-view="stats" aria-label="Stats">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span>Stats</span>
+    </button>
+  </nav>
 
   <script src="app.js"></script>
 </body>
