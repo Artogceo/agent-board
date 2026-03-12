@@ -251,21 +251,21 @@ function resolveAgentId(assignee: string): string {
 async function notifyAgent(task: Task, context?: string, event?: string): Promise<boolean> {
   const hookToken = getHookToken();
   if (!hookToken) return false;
-  const agentName = task.assignee;
-  if (!agentName) return false;
 
+  // ALL webhooks go to org — executors receive work only via spawn
+  const targetAgent = "org";
+
+  const agentName = task.assignee || "unknown";
   const message = [
     `[AgentBoard] Task: ${task.title} (${task.id})`,
-    context ? `Contexte: ${context}` : "",
+    `Assignee: ${agentName}`,
+    context ? `Context: ${context}` : "",
     task.description ? `Brief: ${task.description.slice(0, 300)}` : "",
-    ``,
-    `Check ton board et traite cette task.`,
   ].filter(Boolean).join("\n");
 
   try {
-    const resolvedAgent = resolveAgentId(agentName);
     const basePayload: Record<string, unknown> = {
-      agent: resolvedAgent,
+      agent: targetAgent,
       message,
       wakeMode: "now",
       source: "agentboard",
@@ -828,19 +828,16 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
     details: moveResult.retried ? `Moved to failed, auto-retried` : `Moved from ${fromColumn} to ${column}`,
   });
 
-  // Notify assignee when moved to doing, review, rework, or failed
-  if ((column === "doing" || column === "review" || column === "rework" || column === "failed") && moveResult.task.assignee) {
+  // Notify org when task moves to key columns
+  if (column === "doing" || column === "review" || column === "rework" || column === "failed") {
     const contextMap: Record<string, string> = {
-      doing: "Task remise en doing, check les commentaires pour le feedback",
+      doing: "Task moved to doing",
       review: "Task ready for human review",
       rework: "Task returned for rework — read comments for reason, re-write TZ and re-delegate",
       failed: "Task has failed",
     };
-    // On rework, always notify org regardless of assignee on card
-    const taskToNotify = column === "rework"
-      ? { ...moveResult.task, assignee: "org" } as Task
-      : moveResult.task;
-    notifyAgent(taskToNotify, contextMap[column], "task.move").catch(() => {});
+    // All webhooks go to org (notifyAgent routes to org internally)
+    notifyAgent(moveResult.task, contextMap[column], "task.move").catch(() => {});
 
     // Direct Telegram push via Org bot when task enters review (single notification)
     if (column === "review") {
@@ -881,6 +878,65 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
   }
 
   res.json(moveResult);
+});
+
+// --- Auto-Complete (system fallback for stale doing tasks) ---
+
+router.post("/tasks/:id/auto-complete", async (req: Request, res: Response) => {
+  const agentId = getAgentId(req);
+  // Only org or steve can auto-complete (system-level action)
+  if (!agentId || !["org", "steve"].includes(agentId)) {
+    return res.status(403).json({ error: "Only org or steve can auto-complete tasks" });
+  }
+
+  const task = store.getTask(req.params.id as string);
+  if (!task) return res.status(404).json({ error: "Task not found" });
+  if (task.column !== "doing") return res.status(400).json({ error: "Task is not in doing" });
+
+  const reason = (req.body.reason as string) || "Agent session ended without reporting";
+
+  // 1. Write completionReport
+  await store.updateTask(task.id, {
+    completionReport: `[Auto-completed] ${reason}. Work was done but agent did not report back. Please verify manually.`,
+  });
+
+  // 2. Add system comment
+  await store.addComment(task.id, {
+    author: "system",
+    text: `⚡ Auto-complete: ${reason}`,
+  });
+
+  // 3. Move to review
+  const result = await moveTask(task.id, "review");
+  if ("error" in result && !("task" in result)) {
+    return res.status(400).json(result);
+  }
+
+  const moveResult = result as { task: Task; retried: boolean };
+
+  appendAuditLog({
+    timestamp: now(),
+    agentId,
+    action: "task.auto-complete",
+    taskId: task.id,
+    projectId: task.projectId,
+    from: "doing",
+    to: "review",
+    details: `Auto-completed: ${reason}`,
+  });
+
+  // 4. Send Telegram notification
+  const executor = moveResult.task.assignee || "агент";
+  sendTelegramDirect(
+    `⚡ <b>Задача авто-завершена</b>\n\n` +
+    `📌 <b>${moveResult.task.title}</b>\n` +
+    `🆔 ${moveResult.task.id}\n` +
+    `👤 Исполнитель: ${executor}\n` +
+    `📝 ${reason}\n\n` +
+    `Проверьте результат в дашборде.`
+  ).catch(() => {});
+
+  res.json({ ok: true, task: moveResult.task });
 });
 
 // --- Audit ---

@@ -793,8 +793,38 @@
   let threadInterval = null;
   let currentDetailTaskId = null;
 
+  // --- Panel open/close with iOS body scroll lock ---
+  function _openPanel() {
+    detailPanel.classList.add('open');
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      const scrollY = window.scrollY || window.pageYOffset;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.dataset.panelScrollY = scrollY;
+      const backdrop = document.getElementById('detailBackdrop');
+      if (backdrop) {
+        backdrop.classList.add('active');
+        backdrop.onclick = () => _closePanel();
+      }
+    }
+  }
+  function _closePanel() {
+    detailPanel.classList.remove('open');
+    const scrollY = parseInt(document.body.dataset.panelScrollY || '0');
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.style.top = '';
+    if (scrollY) window.scrollTo(0, scrollY);
+    delete document.body.dataset.panelScrollY;
+    const backdrop = document.getElementById('detailBackdrop');
+    if (backdrop) backdrop.classList.remove('active');
+  }
+
   document.getElementById("closeDetail").addEventListener("click", () => {
-    detailPanel.classList.remove("open");
+    _closePanel();
     if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
     currentDetailTaskId = null;
   });
@@ -838,7 +868,7 @@
         // Close
         detailPanel.style.transform = 'translateY(100%)';
         setTimeout(() => {
-          detailPanel.classList.remove('open');
+          _closePanel();
           detailPanel.style.transform = '';
           if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
           currentDetailTaskId = null;
@@ -1076,7 +1106,7 @@
     if (archBtn) {
       archBtn.addEventListener("click", async () => {
         await api("/tasks/" + taskId, { method: "PATCH", body: JSON.stringify({ archived: true }) });
-        detailPanel.classList.remove("open");
+        _closePanel();
         await loadTasks();
         render();
       });
@@ -1088,7 +1118,7 @@
       delBtn.addEventListener("click", async () => {
         if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
         await api("/tasks/" + taskId, { method: "DELETE" });
-        detailPanel.classList.remove("open");
+        _closePanel();
         await loadTasks();
         render();
       });
@@ -1103,7 +1133,7 @@
     if (task.column === "review") {
       document.getElementById("approveBtn").addEventListener("click", async () => {
         await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "done" }) });
-        detailPanel.classList.remove("open");
+        _closePanel();
         await loadTasks();
         render();
       });
@@ -1123,7 +1153,7 @@
             body: JSON.stringify({ author: "reviewer", text: "\uD83D\uDD04 Rework requested: " + reason }),
           });
         }
-        detailPanel.classList.remove("open");
+        _closePanel();
         await loadTasks();
         render();
       });
@@ -1157,7 +1187,7 @@
     if (threadInterval) clearInterval(threadInterval);
     threadInterval = setInterval(() => refreshTimeline(taskId), 10000);
 
-    detailPanel.classList.add("open");
+    _openPanel();
   }
 
   // --- Modals ---
@@ -1639,7 +1669,7 @@
       if (deltaY > 100) {
         panel.style.transform = 'translateY(100%)';
         setTimeout(() => {
-          panel.classList.remove('open');
+          _closePanel();
           panel.style.transform = '';
           if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
           currentDetailTaskId = null;

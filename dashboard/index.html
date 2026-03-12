@@ -80,17 +80,19 @@
     </div>
   </div>
 
-  <header>
+  <!-- Unified Header -->
+  <div class="header-container" id="headerContainer">
+    <span class="header-brand">AgentOS</span>
+    <div class="header-filters">
+      <select id="projectSelect"><option value="">Loading...</option></select>
+      <select id="agentFilter"><option value="">All Agents</option></select>
+    </div>
+    <button class="theme-toggle" id="themeToggle">&#9790;</button>
+  </div>
+
+  <!-- Legacy header for desktop compatibility (hidden on mobile) -->
+  <header class="desktop-header">
     <h1 class="brand">
-      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" opacity="0.3"/>
-        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="12" cy="7" r="2" fill="currentColor"/>
-        <circle cx="6" cy="14" r="1.5" fill="currentColor"/>
-        <circle cx="18" cy="14" r="1.5" fill="currentColor"/>
-        <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
-      </svg>
       <span class="brand-name">AgentOS</span>
       <span class="brand-sub">Board</span>
     </h1>
@@ -100,13 +102,13 @@
         <button class="tab" data-view="agents">Agents</button>
         <button class="tab" data-view="stats">Stats</button>
       </div>
-      <button class="theme-toggle" id="themeToggle">&#9790;</button>
+      <button class="theme-toggle" id="themeToggleDesktop">&#9790;</button>
     </div>
   </header>
 
   <div class="project-bar" id="projectBar">
-    <select id="projectSelect"><option value="">Loading...</option></select>
-    <select id="agentFilter"><option value="">All Agents</option></select>
+    <select id="projectSelectDesktop"><option value="">Loading...</option></select>
+    <select id="agentFilterDesktop"><option value="">All Agents</option></select>
     <button id="newProjectBtn">+ Project</button>
     <button id="newTaskBtn">+ Task</button>
     <label class="archive-toggle" id="archiveToggleLabel"><input type="checkbox" id="archiveToggle"> Show archived</label>
@@ -126,6 +128,9 @@
 
   <!-- Stats view -->
   <div class="stats-view hidden" id="statsView"></div>
+
+  <!-- Backdrop for detail panel (mobile) -->
+  <div class="detail-backdrop" id="detailBackdrop"></div>
 
   <!-- Task detail panel -->
   <div class="detail-panel" id="detailPanel">
