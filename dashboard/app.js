@@ -579,6 +579,7 @@
     const archiveBtn = (task.column === "done" || task.column === "failed") && !task.archived
       ? '<button class="btn-archive" id="archiveBtn">\uD83D\uDDC4 Archive</button>'
       : "";
+    const deleteBtn = '<button class="btn-delete" id="deleteBtn">\uD83D\uDDD1 Delete</button>';
     const unarchivedBadge = task.archived ? '<span class="badge badge-archived">Archived</span>' : "";
 
     const atts = task.attachments || [];
@@ -685,6 +686,18 @@
     if (archBtn) {
       archBtn.addEventListener("click", async () => {
         await api("/tasks/" + taskId, { method: "PATCH", body: JSON.stringify({ archived: true }) });
+        detailPanel.classList.remove("open");
+        await loadTasks();
+        render();
+      });
+    }
+
+    // Delete task
+    const delBtn = document.getElementById("deleteBtn");
+    if (delBtn) {
+      delBtn.addEventListener("click", async () => {
+        if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
+        await api("/tasks/" + taskId, { method: "DELETE" });
         detailPanel.classList.remove("open");
         await loadTasks();
         render();

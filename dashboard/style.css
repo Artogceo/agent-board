@@ -774,6 +774,18 @@ header h1 .brand-sub {
 }
 .btn-archive:hover { background: var(--border); color: var(--text); }
 
+.btn-delete {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-delete:hover { background: var(--danger); color: #fff; }
+
 .archive-all-btn {
   width: 100%;
   padding: 6px;
