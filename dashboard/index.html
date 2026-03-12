@@ -3,12 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Board</title>
+  <title>AgentOS</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1><span class="logo"></span> Agent Board</h1>
+    <h1 class="brand">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" opacity="0.3"/>
+        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="7" r="2" fill="currentColor"/>
+        <circle cx="6" cy="14" r="1.5" fill="currentColor"/>
+        <circle cx="18" cy="14" r="1.5" fill="currentColor"/>
+        <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
+      </svg>
+      <span class="brand-name">AgentOS</span>
+      <span class="brand-sub">Board</span>
+    </h1>
     <div class="header-actions">
       <div class="tabs" id="viewTabs">
         <button class="tab active" data-view="board">Board</button>
@@ -24,6 +36,7 @@
     <select id="agentFilter"><option value="">All Agents</option></select>
     <button id="newProjectBtn">+ Project</button>
     <button id="newTaskBtn">+ Task</button>
+    <label class="archive-toggle" id="archiveToggleLabel"><input type="checkbox" id="archiveToggle"> Show archived</label>
   </div>
 
   <!-- Kanban view -->
@@ -37,9 +50,12 @@
 
   <!-- Task detail panel -->
   <div class="detail-panel" id="detailPanel">
-    <button class="btn" id="closeDetail" style="float:right">&#x2715;</button>
+    <button class="detail-close" id="closeDetail">&#x2715;</button>
     <div id="detailContent"></div>
   </div>
+
+  <!-- Hidden file input for attachment upload -->
+  <input type="file" id="attachFileInput" accept="image/*,.pdf" style="display:none">
 
   <script src="app.js"></script>
 </body>

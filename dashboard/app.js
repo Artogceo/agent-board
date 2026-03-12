@@ -1,8 +1,8 @@
 // Agent Board - Dashboard App
 (function () {
   const API = "/api";
-  const COLUMNS = ["backlog", "todo", "doing", "review", "done", "failed"];
-  const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", done: "Done", failed: "Failed" };
+  const COLUMNS = ["backlog", "todo", "doing", "review", "rework", "done", "failed"];
+  const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", rework: "Rework", done: "Done", failed: "Failed" };
 
   let state = {
     projects: [],
@@ -11,6 +11,7 @@
     currentProject: null,
     currentView: "board",
     filterAgent: null,
+    showArchived: false,
   };
 
   // --- Theme ---
@@ -33,7 +34,7 @@
   // --- API helpers ---
   async function api(path, opts) {
     const res = await fetch(API + path, {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-API-Key": "sk-dashboard-001" },
       ...opts,
     });
     return res.json();
@@ -86,12 +87,18 @@
   function renderAgentFilter() {
     // Get unique agents from tasks
     const agents = [...new Set(state.tasks.map(t => t.assignee).filter(Boolean))].sort();
-    agentFilter.innerHTML = '<option value="">All Agents</option>' + 
+    agentFilter.innerHTML = '<option value="">All Agents</option>' +
       agents.map(a => `<option value="${a}" ${a === state.filterAgent ? "selected" : ""}>${a}</option>`).join("");
   }
 
   agentFilter.addEventListener("change", () => {
     state.filterAgent = agentFilter.value || null;
+    render();
+  });
+
+  // --- Archive toggle ---
+  document.getElementById("archiveToggle").addEventListener("change", (e) => {
+    state.showArchived = e.target.checked;
     render();
   });
 
@@ -128,7 +135,7 @@
   }
 
   function formatDuration(ms) {
-    if (!ms) return "—";
+    if (!ms) return "\u2014";
     const mins = Math.floor(ms / 60000);
     const hrs = Math.floor(mins / 60);
     if (hrs > 0) return `${hrs}h ${mins % 60}m`;
@@ -158,7 +165,7 @@
 
     const oldest = stats.oldestDoingTask;
     const alertHtml = oldest && oldest.ageMs > 7200000
-      ? `<div class="stat-alert">⚠ Stuck task: "${esc(oldest.title)}" (${esc(oldest.assignee)}) — in progress for ${formatDuration(oldest.ageMs)}</div>`
+      ? `<div class="stat-alert">\u26A0 Stuck task: "${esc(oldest.title)}" (${esc(oldest.assignee)}) \u2014 in progress for ${formatDuration(oldest.ageMs)}</div>`
       : "";
 
     view.innerHTML = `
@@ -195,10 +202,17 @@
     const board = document.getElementById("boardView");
     board.innerHTML = COLUMNS.map((col) => {
       let tasks = state.tasks.filter((t) => t.column === col);
+      // Hide archived unless toggled
+      if (!state.showArchived) {
+        tasks = tasks.filter((t) => !t.archived);
+      }
       // Apply agent filter if set
       if (state.filterAgent) {
         tasks = tasks.filter((t) => t.assignee === state.filterAgent);
       }
+      const archiveAllBtn = (col === "done" && tasks.length > 0)
+        ? `<button class="archive-all-btn" data-col="done">\uD83D\uDDC4 Archive all</button>`
+        : "";
       return `
         <div class="column" data-col="${col}">
           <div class="column-header">
@@ -207,6 +221,7 @@
           </div>
           <div class="column-body" data-col="${col}">
             ${tasks.map(renderCard).join("")}
+            ${archiveAllBtn}
             <button class="add-task-btn" data-col="${col}">+ Add task</button>
           </div>
         </div>`;
@@ -227,6 +242,19 @@
     // Add task buttons
     board.querySelectorAll(".add-task-btn").forEach((btn) => {
       btn.addEventListener("click", () => showTaskModal(btn.dataset.col));
+    });
+
+    // Archive all done
+    board.querySelectorAll(".archive-all-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const doneTasks = state.tasks.filter((t) => t.column === "done" && !t.archived);
+        for (const t of doneTasks) {
+          await api("/tasks/" + t.id, { method: "PATCH", body: JSON.stringify({ archived: true }) });
+        }
+        await loadTasks();
+        render();
+      });
     });
   }
 
@@ -257,8 +285,12 @@
       const isOverdue = deadlineDate < now && task.column !== "done";
       overdueClass = isOverdue ? "card-overdue" : "";
       const deadlineStr = deadlineDate.toLocaleDateString();
-      deadlineHtml = `<span class="badge badge-deadline ${isOverdue ? "badge-overdue" : ""}">${isOverdue ? "⚠ " : ""}📅 ${deadlineStr}</span>`;
+      deadlineHtml = `<span class="badge badge-deadline ${isOverdue ? "badge-overdue" : ""}">${isOverdue ? "\u26A0 " : ""}\uD83D\uDCC5 ${deadlineStr}</span>`;
     }
+
+    // Complexity + planning badges on card
+    const complexHtml = task.complexity === "complex" ? '<span class="badge badge-complex">Complex</span>' : "";
+    const planHtml = task.planningMode ? '<span class="badge badge-planning">\uD83D\uDCCB</span>' : "";
 
     return `
       <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}">
@@ -267,6 +299,8 @@
         <div class="card-meta">
           ${task.assignee ? `<span class="badge badge-assignee">${esc(task.assignee)}</span>` : ""}
           <span class="badge ${priorityClass}">${task.priority}</span>
+          ${complexHtml}
+          ${planHtml}
           ${tags}
           ${deadlineHtml}
           ${comments}
@@ -341,29 +375,49 @@
     currentDetailTaskId = null;
   });
 
-  function renderThread(comments) {
-    const threadEl = document.getElementById("threadMessages");
-    if (!threadEl) return;
-    if (!comments.length) {
-      threadEl.innerHTML = '<div class="thread-empty">No comments yet. Start the conversation!</div>';
-      return;
-    }
-    threadEl.innerHTML = comments.map((c) =>
-      `<div class="thread-msg">
-        <div class="thread-msg-header">
-          <span class="thread-msg-author">${esc(c.author)}</span>
-          <span class="thread-msg-time">${new Date(c.at).toLocaleString()}</span>
-        </div>
-        <div class="thread-msg-text">${esc(c.text)}</div>
-      </div>`
-    ).join("");
-    threadEl.scrollTop = threadEl.scrollHeight;
+  // --- Timeline helpers ---
+  function getMessageType(c) {
+    if (c.author === "system") return "system";
+    if (c.text.startsWith("\u270D\uFE0F")) return "tz";
+    if (c.text.startsWith("\u2705")) return "report";
+    if (c.text.startsWith("\uD83D\uDD04")) return "rework";
+    if (c.text.startsWith("\u26A1")) return "escalation";
+    return "message";
   }
 
-  async function refreshThread(taskId) {
+  function fmtTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " \u00B7 " + d.toLocaleDateString([], { day: "numeric", month: "short" });
+  }
+
+  function renderTimeline(comments) {
+    const el = document.getElementById("timelineMessages");
+    if (!el) return;
+    if (!comments.length) {
+      el.innerHTML = '<div class="tl-empty">No activity yet.</div>';
+      return;
+    }
+    const sorted = [...comments].sort((a, b) => new Date(a.at) - new Date(b.at));
+    el.innerHTML = sorted.map((c) => {
+      const type = getMessageType(c);
+      if (type === "system") {
+        return `<div class="tl-msg tl-system"><span>${esc(c.text)}</span><span class="tl-time">${fmtTime(c.at)}</span></div>`;
+      }
+      const badges = { tz: "TZ", report: "Report", rework: "Rework", escalation: "Escalation" };
+      const badge = badges[type] ? `<span class="tl-badge tl-badge-${type}">${badges[type]}</span>` : "";
+      return `<div class="tl-msg tl-${type}">
+        <div class="tl-header"><span class="tl-author">${esc(c.author)}</span>${badge}<span class="tl-time">${fmtTime(c.at)}</span></div>
+        <div class="tl-text">${esc(c.text)}</div>
+      </div>`;
+    }).join("");
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function refreshTimeline(taskId) {
     try {
       const comments = await api("/tasks/" + taskId + "/comments");
-      if (currentDetailTaskId === taskId) renderThread(comments);
+      if (currentDetailTaskId === taskId) renderTimeline(comments);
     } catch (e) { /* ignore polling errors */ }
   }
 
@@ -372,41 +426,84 @@
     if (!task) return;
     currentDetailTaskId = taskId;
 
+    const complexBadge = task.complexity === "complex" ? '<span class="badge badge-complex">Complex</span>' : "";
+    const planningBadge = task.planningMode ? '<span class="badge badge-planning">\uD83D\uDCCB Planning</span>' : "";
+    const escalateBtn = task.assignee !== "pasha" && task.complexity !== "complex"
+      ? '<button class="btn-escalate" id="escalateBtn">\u26A1 Escalate to Pasha</button>'
+      : "";
+    const archiveBtn = (task.column === "done" || task.column === "failed") && !task.archived
+      ? '<button class="btn-archive" id="archiveBtn">\uD83D\uDDC4 Archive</button>'
+      : "";
+    const unarchivedBadge = task.archived ? '<span class="badge badge-archived">Archived</span>' : "";
+
+    const atts = task.attachments || [];
+    const attHtml = atts.map((a) => {
+      if (a.mimeType && a.mimeType.startsWith("image/")) {
+        return `<img class="attachment-thumb" src="data:${a.mimeType};base64,${a.data}" title="${esc(a.filename)}" onclick="window.open(this.src)">`;
+      }
+      return `<span class="attachment-file" title="${esc(a.filename)}">\uD83D\uDCCE ${esc(a.filename)}</span>`;
+    }).join("");
+
+    const approveLabel = task.planningMode ? "\u2705 Approve TZ" : "\u2705 Approve";
+    const reworkLabel = task.planningMode ? "\uD83D\uDD01 Rework TZ" : "\uD83D\uDD01 Request Rework";
+    const reworkPlaceholder = task.planningMode ? "What needs to change in the TZ..." : "Describe what needs to be fixed...";
+    const reviewHtml = task.column === "review" ? `
+      <div class="detail-actions">
+        <button class="btn-approve" id="approveBtn">${approveLabel}</button>
+        <button class="btn-rework" id="reworkBtn">${reworkLabel}</button>
+      </div>
+      <div class="rework-comment-area hidden" id="reworkArea">
+        <textarea id="reworkComment" placeholder="${reworkPlaceholder}"></textarea>
+        <button id="reworkSubmitBtn">Send</button>
+      </div>
+    ` : "";
+
     detailContent.innerHTML = `
-      <h2>${esc(task.title)}</h2>
-      <div class="detail-field"><label>Status</label><div class="value"><span class="badge" style="background:var(--col-${task.column});color:#fff">${task.column}</span></div></div>
-      <div class="detail-field"><label>Assignee</label><div class="value">${esc(task.assignee || "Unassigned")}</div></div>
-      <div class="detail-field"><label>Priority</label><div class="value"><span class="badge badge-priority-${task.priority}">${task.priority}</span></div></div>
-      <div class="detail-field"><label>Description</label><div class="value">${esc(task.description || "No description")}</div></div>
-      <div class="detail-field"><label>Tags</label><div class="value">${task.tags.map((t) => `<span class="badge badge-tag">${esc(t)}</span>`).join(" ") || "None"}</div></div>
-      <div class="detail-field"><label>Created by</label><div class="value">${esc(task.createdBy)}</div></div>
-      <div class="detail-field"><label>Created</label><div class="value">${new Date(task.createdAt).toLocaleString()}</div></div>
-      <div class="thread-panel">
-        <label>Thread (${task.comments.length})</label>
-        <div class="thread-messages" id="threadMessages"></div>
-        <div class="thread-input">
-          <input type="text" id="commentAuthor" placeholder="Author" class="thread-author-input">
-          <div class="thread-send-row">
-            <input type="text" id="commentText" placeholder="Type a message..." class="thread-text-input">
-            <button class="btn btn-primary" id="addCommentBtn">Send</button>
-          </div>
+      <div class="detail-header">
+        <h2>${esc(task.title)}</h2>
+        <div class="detail-meta-row">
+          <span class="badge" style="background:var(--col-${task.column});color:#fff">${task.column}</span>
+          ${task.assignee ? `<span class="badge badge-assignee">${esc(task.assignee)}</span>` : ""}
+          <span class="badge badge-priority-${task.priority}">${task.priority}</span>
+          ${complexBadge}
+          ${planningBadge}
+          ${unarchivedBadge}
+          ${task.tags.map((t) => `<span class="badge badge-tag">${esc(t)}</span>`).join("")}
+        </div>
+        ${task.description ? `<div class="detail-desc">${esc(task.description)}</div>` : ""}
+        <div class="detail-header-actions">${escalateBtn}${archiveBtn}</div>
+      </div>
+      <div class="timeline-container" id="timelineMessages"></div>
+      <div class="timeline-input">
+        <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
+        <div class="tl-send-row">
+          <input type="text" id="commentText" placeholder="Message..." class="tl-text-input">
+          <button class="btn btn-primary" id="addCommentBtn">Send</button>
+        </div>
+      </div>
+      ${reviewHtml}
+      <div class="detail-attachments">
+        <div class="detail-attach-toggle" id="toggleAttachments">\uD83D\uDCCE Attachments (${atts.length})</div>
+        <div class="detail-attach-body" id="attachBody">
+          <div class="attachment-grid" id="attachmentGrid">${attHtml}</div>
+          <button class="btn-attach" id="attachBtn">\uD83D\uDCCE Attach file</button>
         </div>
       </div>
     `;
 
-    renderThread(task.comments);
+    renderTimeline(task.comments);
 
-    // Send comment handler
+    // Send comment
     async function sendComment() {
-      const author = document.getElementById("commentAuthor").value.trim();
+      const author = document.getElementById("commentAuthor").value.trim() || "steve";
       const text = document.getElementById("commentText").value.trim();
-      if (!author || !text) return;
+      if (!text) return;
       document.getElementById("commentText").value = "";
       await api("/tasks/" + taskId + "/comments", {
         method: "POST",
         body: JSON.stringify({ author, text }),
       });
-      await refreshThread(taskId);
+      await refreshTimeline(taskId);
       await loadTasks();
     }
 
@@ -415,9 +512,102 @@
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment(); }
     });
 
-    // Auto-refresh thread every 10 seconds
+    // Escalate to Pasha
+    const escBtn = document.getElementById("escalateBtn");
+    if (escBtn) {
+      escBtn.addEventListener("click", async () => {
+        await api("/tasks/" + taskId, {
+          method: "PATCH",
+          body: JSON.stringify({ complexity: "complex", assignee: "pasha" }),
+        });
+        await api("/tasks/" + taskId + "/comments", {
+          method: "POST",
+          body: JSON.stringify({ author: "system", text: "\u26A1 Escalated to Pasha for architectural analysis" }),
+        });
+        if (task.column !== "todo") {
+          await api("/tasks/" + taskId + "/move", {
+            method: "POST",
+            body: JSON.stringify({ column: "todo" }),
+          });
+        }
+        await loadTasks();
+        openDetail(taskId);
+      });
+    }
+
+    // Archive task
+    const archBtn = document.getElementById("archiveBtn");
+    if (archBtn) {
+      archBtn.addEventListener("click", async () => {
+        await api("/tasks/" + taskId, { method: "PATCH", body: JSON.stringify({ archived: true }) });
+        detailPanel.classList.remove("open");
+        await loadTasks();
+        render();
+      });
+    }
+
+    // Toggle attachments
+    document.getElementById("toggleAttachments").addEventListener("click", () => {
+      document.getElementById("attachBody").classList.toggle("hidden");
+    });
+
+    // Review actions
+    if (task.column === "review") {
+      document.getElementById("approveBtn").addEventListener("click", async () => {
+        await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "done" }) });
+        detailPanel.classList.remove("open");
+        await loadTasks();
+        render();
+      });
+
+      document.getElementById("reworkBtn").addEventListener("click", () => {
+        document.getElementById("reworkArea").classList.toggle("hidden");
+        document.getElementById("reworkComment").focus();
+      });
+
+      document.getElementById("reworkSubmitBtn").addEventListener("click", async () => {
+        const reason = document.getElementById("reworkComment").value.trim();
+        await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "rework" }) });
+        await api("/tasks/" + taskId, { method: "PATCH", body: JSON.stringify({ assignee: "org" }) });
+        if (reason) {
+          await api("/tasks/" + taskId + "/comments", {
+            method: "POST",
+            body: JSON.stringify({ author: "reviewer", text: "\uD83D\uDD04 Rework requested: " + reason }),
+          });
+        }
+        detailPanel.classList.remove("open");
+        await loadTasks();
+        render();
+      });
+    }
+
+    // Attachment upload
+    const attachBtn = document.getElementById("attachBtn");
+    const fileInput = document.getElementById("attachFileInput");
+    attachBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        const [header, data] = dataUrl.split(",");
+        const mimeType = header.match(/:(.*?);/)[1];
+        await api("/tasks/" + taskId + "/attachments", {
+          method: "POST",
+          body: JSON.stringify({ filename: file.name, mimeType, data, uploadedBy: "user" }),
+        });
+        fileInput.value = "";
+        await loadTasks();
+        const updated = state.tasks.find((t) => t.id === taskId);
+        if (updated) openDetail(taskId);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Auto-refresh timeline every 10s
     if (threadInterval) clearInterval(threadInterval);
-    threadInterval = setInterval(() => refreshThread(taskId), 10000);
+    threadInterval = setInterval(() => refreshTimeline(taskId), 10000);
 
     detailPanel.classList.add("open");
   }
@@ -475,7 +665,7 @@
       <label>Description</label>
       <textarea id="modalTaskDesc"></textarea>
       <label>Assignee</label>
-      <input type="text" id="modalTaskAssignee">
+      <input type="text" id="modalTaskAssignee" placeholder="org">
       <label>Priority</label>
       <select id="modalTaskPriority">
         <option value="medium" selected>Medium</option>
@@ -485,28 +675,116 @@
       </select>
       <label>Tags (comma-separated)</label>
       <input type="text" id="modalTaskTags" placeholder="seo, audit">
+      <div class="modal-modes">
+        <label class="modal-mode-item" id="planningModeToggle">
+          <div class="modal-mode-info">
+            <span class="modal-mode-icon">📋</span>
+            <div>
+              <div class="modal-mode-title">Planning mode</div>
+              <div class="modal-mode-desc">TZ согласовывается со Steve перед запуском</div>
+            </div>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="modalPlanningMode">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="modal-mode-item" id="complexModeToggle">
+          <div class="modal-mode-info">
+            <span class="modal-mode-icon">⚡</span>
+            <div>
+              <div class="modal-mode-title">Complex → Pasha</div>
+              <div class="modal-mode-desc">Архитектурный анализ перед исполнением</div>
+            </div>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="modalComplexMode">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+      </div>
+      <label>📎 Attachments</label>
+      <div class="modal-file-drop" id="modalFileDrop">
+        <input type="file" id="modalFileInput" multiple accept="image/*,.pdf,.txt,.md,.json">
+        <span class="modal-file-drop-text">Choose files or drag here</span>
+      </div>
+      <div class="modal-file-list" id="modalFileList"></div>
       <div class="modal-actions">
         <button class="btn" id="modalCancel">Cancel</button>
         <button class="btn btn-primary" id="modalConfirm">Create</button>
       </div>
     `);
+
+    // Complex mode → auto-set assignee to pasha
+    const complexCb = overlay.querySelector("#modalComplexMode");
+    const assigneeInput = overlay.querySelector("#modalTaskAssignee");
+    complexCb.addEventListener("change", () => {
+      if (complexCb.checked) {
+        assigneeInput.value = "pasha";
+        assigneeInput.readOnly = true;
+        assigneeInput.style.opacity = "0.6";
+      } else {
+        assigneeInput.readOnly = false;
+        assigneeInput.style.opacity = "1";
+        if (assigneeInput.value === "pasha") assigneeInput.value = "";
+      }
+    });
+
+    // File list preview
+    const fileInput = overlay.querySelector("#modalFileInput");
+    const fileList = overlay.querySelector("#modalFileList");
+    fileInput.addEventListener("change", () => {
+      fileList.innerHTML = [...fileInput.files].map((f) =>
+        `<span class="modal-file-item">\uD83D\uDCCE ${esc(f.name)}</span>`
+      ).join("");
+    });
+
     overlay.querySelector("#modalCancel").addEventListener("click", () => overlay.remove());
     overlay.querySelector("#modalConfirm").addEventListener("click", async () => {
       const title = overlay.querySelector("#modalTaskTitle").value.trim();
       if (!title) return;
       const tags = overlay.querySelector("#modalTaskTags").value.trim();
-      await api("/tasks", {
+      const isComplex = overlay.querySelector("#modalComplexMode").checked;
+      const isPlanning = overlay.querySelector("#modalPlanningMode").checked;
+      const assignee = assigneeInput.value.trim() || "org";
+
+      // Create task
+      const task = await api("/tasks", {
         method: "POST",
         body: JSON.stringify({
           projectId: state.currentProject,
           title,
           description: overlay.querySelector("#modalTaskDesc").value.trim(),
-          assignee: overlay.querySelector("#modalTaskAssignee").value.trim(),
+          assignee,
           priority: overlay.querySelector("#modalTaskPriority").value,
           tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
           column: column || "backlog",
+          complexity: isComplex ? "complex" : "normal",
+          planningMode: isPlanning,
         }),
       });
+
+      // Upload attachments if any
+      const files = fileInput.files;
+      if (files.length && task && task.id) {
+        for (const file of files) {
+          await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              const dataUrl = e.target.result;
+              const [header, data] = dataUrl.split(",");
+              const mimeType = header.match(/:(.*?);/)[1];
+              await api("/tasks/" + task.id + "/attachments", {
+                method: "POST",
+                body: JSON.stringify({ filename: file.name, mimeType, data, uploadedBy: "steve" }),
+              });
+              resolve();
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+      }
+
       overlay.remove();
       await loadTasks();
       render();

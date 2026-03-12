@@ -1,0 +1,16 @@
+{
+  "name": "standard-task",
+  "description": "Стандартная задача с ревью",
+  "tasks": [
+    {
+      "title": "{{title}}",
+      "description": "{{description}}",
+      "column": "backlog",
+      "assignee": "{{assignee}}",
+      "tags": ["{{project}}", "{{type}}"],
+      "priority": "{{priority}}",
+      "requiresReview": true,
+      "maxRetries": 2
+    }
+  ]
+}

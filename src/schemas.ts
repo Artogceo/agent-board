@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const TaskColumnSchema = z.enum(["backlog", "todo", "doing", "review", "done", "failed"]);
+const TaskColumnSchema = z.enum(["backlog", "todo", "doing", "review", "rework", "done", "failed"]);
 const TaskPrioritySchema = z.enum(["low", "medium", "high", "urgent"]);
 
 const NextTaskSchema = z.object({
@@ -24,6 +24,8 @@ export const CreateTaskSchema = z.object({
   nextTask: NextTaskSchema.optional(),
   parentTaskId: z.string().optional(),
   requiresReview: z.boolean().optional(),
+  complexity: z.enum(["normal", "complex"]).optional(),
+  planningMode: z.boolean().optional(),
   maxRetries: z.number().int().min(0).optional(),
   deadline: z.string().optional(),
   inputPath: z.string().optional(),
@@ -46,6 +48,18 @@ export const UpdateTaskSchema = z.object({
   inputPath: z.string().optional(),
   outputPath: z.string().optional(),
   dependencies: z.array(z.string()).optional(),
+  technicalSpec: z.string().optional(),
+  completionReport: z.string().optional(),
+  complexity: z.enum(["normal", "complex"]).optional(),
+  planningMode: z.boolean().optional(),
+  archived: z.boolean().optional(),
+});
+
+export const CreateAttachmentSchema = z.object({
+  filename: z.string().min(1),
+  mimeType: z.string().min(1),
+  data: z.string().min(1),
+  uploadedBy: z.string().min(1),
 });
 
 export const MoveTaskSchema = z.object({

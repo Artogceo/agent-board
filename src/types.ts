@@ -15,7 +15,16 @@ export interface Comment {
   at: string;
 }
 
-export type TaskColumn = "backlog" | "todo" | "doing" | "review" | "done" | "failed";
+export interface Attachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  data: string;       // base64
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+export type TaskColumn = "backlog" | "todo" | "doing" | "review" | "rework" | "done" | "failed";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface NextTask {
@@ -53,6 +62,13 @@ export interface Task {
   maxRetries?: number;      // Max retries allowed (default 2)
   requiresReview?: boolean; // Must pass through "review" before "done"
   durationMs?: number;      // Computed: completedAt - startedAt
+  // Agent workflow fields
+  complexity?: "normal" | "complex"; // Task complexity level
+  planningMode?: boolean;            // TZ requires Steve's approval before execution
+  technicalSpec?: string;     // TZ written by org agent
+  completionReport?: string;  // Completion report: what was done + how to verify
+  attachments?: Attachment[];  // Screenshots and files attached to task
+  archived?: boolean;          // Hidden from board when true
   createdAt: string;
   updatedAt: string;
 }

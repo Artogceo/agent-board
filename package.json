@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node --env-file=.env dist/index.js",
     "dev": "tsc --watch",
     "mcp": "node dist/mcp-server.js",
     "test": "vitest run"

@@ -1,0 +1,27 @@
+{
+  "name": "pipeline-feature",
+  "description": "Пайплайн: Lead пишет ТЗ -> Разработчик делает -> Reviewer проверяет",
+  "tasks": [
+    {
+      "title": "[ТЗ] {{feature_name}}",
+      "description": "Написать техническое задание для: {{feature_name}}",
+      "column": "todo",
+      "assignee": "lead",
+      "tags": ["planning", "{{project}}"],
+      "priority": "high",
+      "nextTask": {
+        "title": "[DEV] {{feature_name}}",
+        "description": "Реализовать по ТЗ от Lead-агента",
+        "assignee": "{{dev_agent}}",
+        "tags": ["development", "{{project}}"],
+        "requiresReview": true,
+        "nextTask": {
+          "title": "[REVIEW] {{feature_name}}",
+          "description": "Код-ревью реализации",
+          "assignee": "reviewer",
+          "tags": ["review", "{{project}}"]
+        }
+      }
+    }
+  ]
+}

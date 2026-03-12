@@ -5,7 +5,7 @@ import { createHmac } from "crypto";
 import { z } from "zod";
 import * as store from "./store";
 import { generateId, now } from "./utils";
-import { Task, TaskColumn, TaskPriority, NextTask, AgentStats, BoardStats } from "./types";
+import { Task, TaskColumn, TaskPriority, NextTask, AgentStats, BoardStats, Attachment } from "./types";
 import { moveTask } from "./services";
 import { appendAuditLog, readAuditLog } from "./audit";
 import {
@@ -16,6 +16,7 @@ import {
   CreateCommentSchema,
   RegisterAgentSchema,
   UpdateProjectSchema,
+  CreateAttachmentSchema,
 } from "./schemas";
 
 const router = Router();
@@ -195,6 +196,13 @@ const AGENT_SESSION_MAP: Record<string, string> = {
   "community": "agent:community:main",
   "ops": "agent:ops:main",
   "infra-agent": "agent:infra:main",
+  "steve": "agent:main:main",
+  "org": "agent:org:main",
+  "backend-cto": "agent:backend-cto:main",
+  "design-cdo": "agent:design-cdo:main",
+  "pasha": "agent:pasha:main",
+  "critic-audit": "agent:critic-audit:main",
+  "qa": "agent:qa:main",
 };
 
 // Map board assignee names to gateway agent IDs
@@ -494,7 +502,7 @@ router.get("/tasks", (req: Request, res: Response) => {
 });
 
 router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Response) => {
-  const { projectId, title, description, assignee, createdBy, priority, tags, column, nextTask, parentTaskId, requiresReview, maxRetries, deadline, inputPath, outputPath, dependencies } = req.body;
+  const { projectId, title, description, assignee, createdBy, priority, tags, column, nextTask, parentTaskId, requiresReview, complexity, planningMode, maxRetries, deadline, inputPath, outputPath, dependencies } = req.body;
   const col: TaskColumn = column || "backlog";
   const task: Task = {
     id: generateId("task"),
@@ -516,6 +524,8 @@ router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Resp
     inputPath: inputPath || undefined,
     outputPath: outputPath || undefined,
     requiresReview: requiresReview || false,
+    complexity: complexity || "normal",
+    planningMode: planningMode || false,
     maxRetries: maxRetries ?? 2,
     retryCount: 0,
     startedAt: col === "doing" ? now() : undefined,
@@ -533,9 +543,11 @@ router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Resp
     details: `Created task "${created.title}"`,
   });
 
-  // Notify agent only for high/critical priority tasks (routine tasks picked up via heartbeat)
-  if (created.column === "todo" && created.assignee && (created.priority === "high" || created.priority === "urgent")) {
-    notifyAgent(created, undefined, "task.create").catch(() => {});
+  // Always notify org; for other agents notify on high/urgent priority
+  if (created.column === "todo" && created.assignee) {
+    if (created.assignee === "org" || created.priority === "high" || created.priority === "urgent") {
+      notifyAgent(created, undefined, "task.create").catch(() => {});
+    }
   }
 
   // Webhook to main disabled (pollutes Quentin's chat)
@@ -626,6 +638,54 @@ router.post("/tasks/:id/comments", validate(CreateCommentSchema), async (req: Re
   }
 
   res.json(updated);
+});
+
+// --- Attachments ---
+
+router.post("/tasks/:id/attachments", validate(CreateAttachmentSchema), async (req: Request, res: Response) => {
+  const task = store.getTask(req.params.id as string);
+  if (!task) return res.status(404).json({ error: "Task not found" });
+
+  const { filename, mimeType, data, uploadedBy } = req.body;
+  const attachment: Attachment = {
+    id: generateId("att"),
+    filename,
+    mimeType,
+    data,
+    uploadedBy,
+    uploadedAt: now(),
+  };
+
+  const attachments = [...(task.attachments || []), attachment];
+  const updated = await store.updateTask(req.params.id as string, { attachments } as any);
+  if (!updated) return res.status(404).json({ error: "Task not found" });
+
+  appendAuditLog({
+    timestamp: now(),
+    agentId: getAgentId(req),
+    action: "task.attachment",
+    taskId: task.id,
+    projectId: task.projectId,
+    details: `Attachment added: ${filename} by ${uploadedBy}`,
+  });
+
+  res.status(201).json({ attachment, task: updated });
+});
+
+router.get("/tasks/:id/attachments", (req: Request, res: Response) => {
+  const task = store.getTask(req.params.id as string);
+  if (!task) return res.status(404).json({ error: "Task not found" });
+  // Return attachments without base64 data for listing (use full endpoint for download)
+  const list = (task.attachments || []).map(({ data: _data, ...meta }) => meta);
+  res.json(list);
+});
+
+router.get("/tasks/:id/attachments/:attId", (req: Request, res: Response) => {
+  const task = store.getTask(req.params.id as string);
+  if (!task) return res.status(404).json({ error: "Task not found" });
+  const att = (task.attachments || []).find(a => a.id === req.params.attId);
+  if (!att) return res.status(404).json({ error: "Attachment not found" });
+  res.json(att);
 });
 
 // --- GET Comments ---
@@ -736,14 +796,29 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
     details: moveResult.retried ? `Moved to failed, auto-retried` : `Moved from ${fromColumn} to ${column}`,
   });
 
-  // Notify assignee when moved to doing, review, or failed
-  if ((column === "doing" || column === "review" || column === "failed") && moveResult.task.assignee) {
+  // Notify assignee when moved to doing, review, rework, or failed
+  if ((column === "doing" || column === "review" || column === "rework" || column === "failed") && moveResult.task.assignee) {
     const contextMap: Record<string, string> = {
       doing: "Task remise en doing, check les commentaires pour le feedback",
-      review: "Task moved to review",
+      review: "Task ready for human review",
+      rework: "Task returned for rework — read comments for reason, re-write TZ and re-delegate",
       failed: "Task has failed",
     };
-    notifyAgent(moveResult.task, contextMap[column], "task.move").catch(() => {});
+    // On rework, always notify org regardless of assignee on card
+    const taskToNotify = column === "rework"
+      ? { ...moveResult.task, assignee: "org" } as Task
+      : moveResult.task;
+    notifyAgent(taskToNotify, contextMap[column], "task.move").catch(() => {});
+
+    // Also notify Steve (Telegram) when task enters review
+    if (column === "review") {
+      const steveTask = { ...moveResult.task, assignee: "steve" } as Task;
+      const reviewMsg = moveResult.task.planningMode
+        ? `📋 ТЗ к задаче "${moveResult.task.title}" готово к согласованию`
+        : `Задача "${moveResult.task.title}" готова к review`;
+      const reviewEvent = moveResult.task.planningMode ? "task.tz-review" : "task.review";
+      notifyAgent(steveTask, reviewMsg, reviewEvent).catch(() => {});
+    }
   }
 
   // Notify on retry

@@ -9,7 +9,7 @@ export interface MoveResult {
   error?: string;
 }
 
-const VALID_COLUMNS: TaskColumn[] = ["backlog", "todo", "doing", "review", "done", "failed"];
+const VALID_COLUMNS: TaskColumn[] = ["backlog", "todo", "doing", "review", "rework", "done", "failed"];
 
 export async function moveTask(taskId: string, column: TaskColumn): Promise<MoveResult | { error: string; requiresReview?: boolean }> {
   if (!column) return { error: "column is required" };
@@ -65,6 +65,14 @@ export async function moveTask(taskId: string, column: TaskColumn): Promise<Move
 
   const updated = await store.updateTask(taskId, updates);
   if (!updated) return { error: "Task not found" };
+
+  // System comment for column transition (timeline history)
+  if (current.column !== column) {
+    await store.addComment(taskId, {
+      author: "system",
+      text: `→ ${column}`,
+    });
+  }
 
   // Auto-retry: if moved to "failed" and retries remaining
   let retried = false;
