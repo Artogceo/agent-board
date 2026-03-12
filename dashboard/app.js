@@ -90,12 +90,16 @@
     if (saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches)) {
       document.documentElement.setAttribute("data-theme", "dark");
       themeToggle.textContent = "\u2600";
+      themeToggle.setAttribute("data-tooltip", "Светлая тема");
+    } else {
+      themeToggle.setAttribute("data-tooltip", "Тёмная тема");
     }
   }
   themeToggle.addEventListener("click", () => {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
     themeToggle.textContent = isDark ? "\u263E" : "\u2600";
+    themeToggle.setAttribute("data-tooltip", isDark ? "Тёмная тема" : "Светлая тема");
     localStorage.setItem("ab-theme", isDark ? "light" : "dark");
   });
   initTheme();
@@ -309,6 +313,20 @@
     board.querySelectorAll(".card").forEach(initDrag);
     board.querySelectorAll(".column-body").forEach(initDrop);
 
+    // Delete task buttons on cards
+    board.querySelectorAll(".card-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const taskId = btn.dataset.deleteId;
+        const task = state.tasks.find((t) => t.id === taskId);
+        if (!task) return;
+        if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
+        await api("/tasks/" + taskId, { method: "DELETE" });
+        await loadTasks();
+        render();
+      });
+    });
+
     // Click to open detail
     board.querySelectorAll(".card").forEach((card) => {
       card.addEventListener("click", (e) => {
@@ -372,7 +390,10 @@
 
     return `
       <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}">
-        <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
+        <div class="card-header-row">
+          <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
+          <button class="card-delete-btn" data-delete-id="${task.id}" title="Delete task">\uD83D\uDDD1</button>
+        </div>
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
         <div class="card-meta">
           ${task.assignee ? `<span class="badge badge-assignee">${esc(task.assignee)}</span>` : ""}
@@ -774,11 +795,121 @@
   function showModal(html) {
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
-    overlay.innerHTML = `<div class="modal">${html}</div>`;
+    overlay.innerHTML = `<div class="modal">
+      <div class="modal-drag-handle"></div>
+      <button class="modal-collapse-btn" title="Collapse/Expand">▼</button>
+      ${html}
+    </div>`;
     document.body.appendChild(overlay);
+    
+    const modal = overlay.querySelector('.modal');
+    const dragHandle = overlay.querySelector('.modal-drag-handle');
+    const collapseBtn = overlay.querySelector('.modal-collapse-btn');
+    let isCollapsed = false;
+    
+    // Close on overlay click (but not when clicking modal content)
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) overlay.remove();
     });
+    
+    // Collapse/expand functionality
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', () => {
+        isCollapsed = !isCollapsed;
+        modal.classList.toggle('collapsed', isCollapsed);
+        collapseBtn.textContent = isCollapsed ? '▲' : '▼';
+      });
+    }
+    
+    // Swipe to close (mobile)
+    let touchStartY = 0;
+    let touchStartX = 0;
+    let isSwiping = false;
+    
+    const handleTouchStart = (e) => {
+      touchStartY = e.touches[0].clientY;
+      touchStartX = e.touches[0].clientX;
+      isSwiping = true;
+      modal.style.transition = 'none';
+    };
+    
+    const handleTouchMove = (e) => {
+      if (!isSwiping) return;
+      
+      const touchY = e.touches[0].clientY;
+      const touchX = e.touches[0].clientX;
+      const deltaY = touchY - touchStartY;
+      const deltaX = touchX - touchStartX;
+      
+      // Only handle vertical swipes (more vertical than horizontal)
+      if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
+        // Swiping down
+        modal.style.transform = `translateY(${deltaY}px)`;
+        overlay.style.background = `rgba(0,0,0,${0.6 - deltaY / 800})`;
+      }
+    };
+    
+    const handleTouchEnd = (e) => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      
+      const touchY = e.changedTouches[0].clientY;
+      const deltaY = touchY - touchStartY;
+      
+      modal.style.transition = '';
+      
+      // If swiped down more than 100px or with velocity, close the modal
+      if (deltaY > 100) {
+        modal.style.transform = `translateY(100vh)`;
+        overlay.style.background = 'rgba(0,0,0,0)';
+        setTimeout(() => overlay.remove(), 300);
+      } else {
+        // Snap back
+        modal.style.transform = '';
+        overlay.style.background = '';
+      }
+    };
+    
+    // Attach swipe handlers to drag handle and modal
+    if (dragHandle) {
+      dragHandle.addEventListener('touchstart', handleTouchStart, { passive: true });
+      dragHandle.addEventListener('touchmove', handleTouchMove, { passive: true });
+      dragHandle.addEventListener('touchend', handleTouchEnd);
+    }
+    
+    // Also allow swiping from anywhere on the modal background on mobile
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+      modal.addEventListener('touchmove', handleTouchMove, { passive: true });
+      modal.addEventListener('touchend', handleTouchEnd);
+    }
+    
+    // Handle keyboard visibility changes (prevent closing when keyboard opens)
+    const originalWindowHeight = window.innerHeight;
+    let keyboardOpen = false;
+    
+    const handleResize = () => {
+      const heightDiff = originalWindowHeight - window.innerHeight;
+      keyboardOpen = heightDiff > 150; // Keyboard typically takes more than 150px
+      
+      if (keyboardOpen && window.matchMedia('(max-width: 768px)').matches) {
+        // Adjust modal position when keyboard opens
+        modal.style.maxHeight = '60vh';
+        modal.style.transform = 'translateY(0)';
+      } else {
+        modal.style.maxHeight = '';
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup on remove
+    const originalRemove = overlay.remove.bind(overlay);
+    overlay.remove = () => {
+      window.removeEventListener('resize', handleResize);
+      originalRemove();
+    };
+    
     return overlay;
   }
 
@@ -818,12 +949,12 @@
     if (!state.currentProject) return;
     const overlay = showModal(`
       <h2>New Task</h2>
-      <label>Title</label>
-      <input type="text" id="modalTaskTitle" autofocus>
+      <label>Title *</label>
+      <input type="text" id="modalTaskTitle" autofocus autocomplete="off" enterkeyhint="next">
       <label>Description</label>
-      <textarea id="modalTaskDesc"></textarea>
+      <textarea id="modalTaskDesc" rows="3" enterkeyhint="next"></textarea>
       <label>Assignee</label>
-      <input type="text" id="modalTaskAssignee" placeholder="org">
+      <input type="text" id="modalTaskAssignee" placeholder="org" autocomplete="off" enterkeyhint="next">
       <label>Priority</label>
       <select id="modalTaskPriority">
         <option value="medium" selected>Medium</option>
@@ -832,7 +963,7 @@
         <option value="urgent">Urgent</option>
       </select>
       <label>Tags (comma-separated)</label>
-      <input type="text" id="modalTaskTags" placeholder="seo, audit">
+      <input type="text" id="modalTaskTags" placeholder="seo, audit" autocomplete="off" enterkeyhint="done">
       <div class="modal-modes">
         <label class="modal-mode-item" id="planningModeToggle">
           <div class="modal-mode-info">
@@ -864,12 +995,12 @@
       <label>📎 Attachments</label>
       <div class="modal-file-drop" id="modalFileDrop">
         <input type="file" id="modalFileInput" multiple accept="image/*,.pdf,.txt,.md,.json">
-        <span class="modal-file-drop-text">Choose files or drag here</span>
+        <span class="modal-file-drop-text">Tap to choose files</span>
       </div>
       <div class="modal-file-list" id="modalFileList"></div>
       <div class="modal-actions">
-        <button class="btn" id="modalCancel">Cancel</button>
-        <button class="btn btn-primary" id="modalConfirm">Create</button>
+        <button class="btn" id="modalCancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="modalConfirm" type="button">Create</button>
       </div>
     `);
 

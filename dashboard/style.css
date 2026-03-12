@@ -38,6 +38,8 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* --- Header --- */
@@ -135,6 +137,30 @@ header h1 .brand-sub {
   align-items: center;
   justify-content: center;
   font-size: 16px;
+  position: relative;
+}
+
+/* Tooltip on theme toggle */
+.theme-toggle::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card-bg, #1e293b);
+  color: var(--text, #f1f5f9);
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  border: 1px solid var(--border, #334155);
+  z-index: 100;
+}
+.theme-toggle:hover::after {
+  opacity: 1;
 }
 
 /* --- Project selector --- */
@@ -258,11 +284,53 @@ header h1 .brand-sub {
   opacity: 0.4;
 }
 
+.card-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .card-title {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 6px;
   line-height: 1.3;
+  flex: 1;
+}
+
+.card-delete-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.card:hover .card-delete-btn {
+  opacity: 1;
+}
+
+.card-delete-btn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Mobile: always show delete button */
+@media (max-width: 768px) {
+  .card-delete-btn {
+    opacity: 1;
+    background: rgba(239,68,68,0.1);
+  }
 }
 
 .card-desc {
@@ -345,6 +413,8 @@ header h1 .brand-sub {
   align-items: center;
   justify-content: center;
   z-index: 200;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .modal {
@@ -353,7 +423,49 @@ header h1 .brand-sub {
   padding: 24px;
   width: 90%;
   max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+/* Modal drag handle for mobile */
+.modal-drag-handle {
+  display: none;
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: -12px auto 16px;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.modal-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Modal collapse/expand button */
+.modal-collapse-btn {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 40px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--surface-hover);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-muted);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-collapse-btn:hover {
+  background: var(--border);
+  color: var(--text);
 }
 
 .modal h2 {
@@ -840,11 +952,126 @@ header h1 .brand-sub {
 
 /* --- Responsive --- */
 @media (max-width: 768px) {
-  .board { padding: 0 12px 12px; gap: 12px; }
-  .column { min-width: 260px; }
-  .detail-panel { width: 100vw; }
-  header { padding: 0 12px; }
-  .project-bar { padding: 12px; }
+  /* Safe area insets for notch devices */
+  header { 
+    padding: env(safe-area-inset-top) 12px 0; 
+    height: auto; 
+    min-height: calc(52px + env(safe-area-inset-top)); 
+    flex-wrap: wrap; 
+  }
+
+  /* Board — вертикальный стек вместо горизонтального скролла */
+  .board { 
+    padding: 8px 12px calc(80px + env(safe-area-inset-bottom)); 
+    gap: 10px; 
+    flex-direction: column; 
+    overflow-x: unset; 
+  }
+  .column { min-width: unset !important; width: 100%; flex-shrink: 0; }
+  .col-body { max-height: 50vh; overflow-y: auto; }
+
+  /* Detail panel — bottom sheet */
+  .detail-panel {
+    width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    height: 90vh;
+    border-radius: 16px 16px 0 0;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Modal — fullscreen mobile sheet */
+  .modal-overlay { 
+    align-items: flex-end; 
+    padding: 0; 
+    background: rgba(0,0,0,0.6);
+  }
+  
+  .modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 95vh;
+    min-height: 60vh;
+    border-radius: 16px 16px 0 0;
+    overflow-y: auto;
+    padding: 20px 16px calc(32px + env(safe-area-inset-bottom));
+    margin: 0;
+    transform: translateY(0);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s ease;
+  }
+  
+  /* Collapsed state */
+  .modal.collapsed {
+    max-height: 40vh;
+    min-height: auto;
+  }
+  
+  /* Show drag handle on mobile */
+  .modal-drag-handle {
+    display: block;
+  }
+  
+  /* Show collapse button on mobile */
+  .modal-collapse-btn {
+    display: flex;
+  }
+  
+  /* Swipe indicator animation */
+  @keyframes pulse-drag {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  
+  .modal-drag-handle {
+    animation: pulse-drag 2s ease-in-out infinite;
+  }
+
+  /* Touch targets - minimum 44px */
+  .btn, button { min-height: 44px; min-width: 44px; }
+  .card { padding: 12px; min-height: 56px; }
+  .tab { min-height: 44px; padding: 10px 16px; }
+  .project-bar select, .project-bar button { min-height: 44px; }
+  
+  /* Form elements touch targets */
+  .modal input, .modal textarea, .modal select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Toggle switch touch target */
+  .toggle-switch {
+    width: 44px;
+    height: 28px;
+  }
+  
+  .toggle-thumb::after {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .toggle-switch input:checked + .toggle-thumb::after {
+    transform: translateX(16px);
+  }
+
+  /* Project bar with safe area */
+  .project-bar { 
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); 
+    flex-wrap: wrap;
+  }
+  
+  /* PIN overlay safe area */
+  .pin-overlay {
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  }
+  
+  .pin-card {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 16px;
+  }
 }
 
 /* Add task btn in column */
@@ -921,13 +1148,16 @@ header h1 .brand-sub {
   position: relative;
   border: 1.5px dashed var(--border);
   border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: border-color 0.15s, background 0.15s;
+  min-height: 56px; /* Touch target size */
+  background: var(--bg);
 }
 .modal-file-drop:hover { border-color: var(--accent); background: var(--surface-hover); }
 .modal-file-drop input[type="file"] {
@@ -938,7 +1168,7 @@ header h1 .brand-sub {
   width: 100%;
   height: 100%;
 }
-.modal-file-drop-text { font-size: 13px; color: var(--text-muted); pointer-events: none; }
+.modal-file-drop-text { font-size: 14px; color: var(--text-muted); pointer-events: none; font-weight: 500; }
 
 /* Planning badge */
 .badge-planning { background: rgba(56,189,248,0.15); color: #0ea5e9; }
