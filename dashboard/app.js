@@ -1106,11 +1106,13 @@
   }
 
   // --- Modals ---
-  function showModal(html) {
+  function showModal(html, options = {}) {
+    const { fullscreen = true, preventSwipe = false } = options;
+    
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
-    overlay.innerHTML = `<div class="modal">
-      <div class="modal-drag-handle" role="button" aria-label="Drag to dismiss"></div>
+    overlay.innerHTML = `<div class="modal ${fullscreen ? 'modal-fullscreen' : ''}">
+      <div class="modal-drag-handle" role="button" aria-label="Drag to dismiss" tabindex="0"></div>
       <button class="modal-collapse-btn" title="Collapse/Expand" aria-label="Collapse or expand">▼</button>
       <div class="modal-content-scrollable">${html}</div>
     </div>`;
@@ -1121,6 +1123,10 @@
     const collapseBtn = overlay.querySelector('.modal-collapse-btn');
     const content = overlay.querySelector('.modal-content-scrollable');
     let isCollapsed = false;
+    
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
     
     // Close on overlay click (but not when clicking modal content)
     overlay.addEventListener("click", (e) => {
@@ -1136,10 +1142,16 @@
         isCollapsed = !isCollapsed;
         modal.classList.toggle('collapsed', isCollapsed);
         collapseBtn.textContent = isCollapsed ? '▲' : '▼';
+        collapseBtn.setAttribute('aria-expanded', !isCollapsed);
+        
+        // Scroll to top when expanding
+        if (!isCollapsed && content) {
+          content.scrollTop = 0;
+        }
       });
     }
     
-    // Swipe to close (mobile)
+    // Swipe to close (mobile) - iOS pattern
     let touchStartY = 0;
     let touchStartX = 0;
     let isSwiping = false;
@@ -1149,6 +1161,12 @@
       // Don't handle if touching input, textarea, or select
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
       
+      // Only allow swipe from drag handle or top area
+      const isDragHandle = e.target.classList.contains('modal-drag-handle');
+      const isTopArea = e.touches[0].clientY < 120;
+      
+      if (!isDragHandle && !isTopArea) return;
+      
       touchStartY = e.touches[0].clientY;
       touchStartX = e.touches[0].clientX;
       startTime = Date.now();
@@ -1157,18 +1175,20 @@
     };
     
     const handleTouchMove = (e) => {
-      if (!isSwiping) return;
+      if (!isSwiping || preventSwipe) return;
       
       const touchY = e.touches[0].clientY;
       const touchX = e.touches[0].clientX;
       const deltaY = touchY - touchStartY;
       const deltaX = touchX - touchStartX;
       
-      // Only handle vertical swipes downward from near the top
-      if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0 && touchStartY < 100) {
-        // Swiping down
-        modal.style.transform = `translateY(${deltaY}px)`;
-        overlay.style.background = `rgba(0,0,0,${0.6 - deltaY / 800})`;
+      // Only handle vertical swipes downward
+      if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
+        e.preventDefault();
+        // Swiping down - add resistance
+        const resistance = deltaY * 0.6;
+        modal.style.transform = `translateY(${resistance}px)`;
+        overlay.style.background = `rgba(0,0,0,${Math.max(0, 0.6 - deltaY / 600)})`;
       }
     };
     
@@ -1179,60 +1199,110 @@
       const touchY = e.changedTouches[0].clientY;
       const deltaY = touchY - touchStartY;
       const deltaTime = Date.now() - startTime;
+      const velocity = deltaY / deltaTime;
       
       modal.style.transition = '';
       overlay.style.transition = '';
       
-      // If swiped down more than 100px or with velocity, close the modal
-      if (deltaY > 100 || (deltaY > 50 && deltaTime < 200)) {
+      // Close threshold: 100px or fast swipe (velocity > 0.5)
+      if (deltaY > 100 || (deltaY > 60 && velocity > 0.5)) {
         modal.style.transform = `translateY(100vh)`;
         overlay.style.background = 'rgba(0,0,0,0)';
-        setTimeout(() => overlay.remove(), 300);
+        setTimeout(() => overlay.remove(), 350);
       } else {
-        // Snap back
+        // Snap back with bounce effect
         modal.style.transform = '';
         overlay.style.background = '';
       }
     };
     
-    // Attach swipe handlers to drag handle
-    if (dragHandle) {
-      dragHandle.addEventListener('touchstart', handleTouchStart, { passive: true });
-      dragHandle.addEventListener('touchmove', handleTouchMove, { passive: true });
-      dragHandle.addEventListener('touchend', handleTouchEnd);
+    // Attach swipe handlers
+    if (!preventSwipe) {
+      if (dragHandle) {
+        dragHandle.addEventListener('touchstart', handleTouchStart, { passive: true });
+        dragHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
+        dragHandle.addEventListener('touchend', handleTouchEnd);
+        
+        // Keyboard accessibility for drag handle
+        dragHandle.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            modal.classList.add('closing');
+            setTimeout(() => overlay.remove(), 300);
+          }
+        });
+      }
+      
+      // Also allow swipe from modal content top area
+      modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+      modal.addEventListener('touchmove', handleTouchMove, { passive: false });
+      modal.addEventListener('touchend', handleTouchEnd);
     }
     
-    // Handle keyboard visibility changes (prevent closing when keyboard opens)
+    // Handle keyboard visibility changes (iOS keyboard handling)
     const originalWindowHeight = window.innerHeight;
+    const originalVisualHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     let keyboardOpen = false;
     
     const handleResize = () => {
-      const heightDiff = originalWindowHeight - window.innerHeight;
-      keyboardOpen = heightDiff > 150;
+      // Use visualViewport for iOS if available
+      const currentHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const heightDiff = originalWindowHeight - currentHeight;
+      const isKeyboardOpen = heightDiff > 150;
       
-      if (keyboardOpen && window.matchMedia('(max-width: 768px)').matches) {
-        document.body.classList.add('keyboard-open');
-        modal.style.maxHeight = '55vh';
-      } else {
-        document.body.classList.remove('keyboard-open');
-        if (!isCollapsed) {
-          modal.style.maxHeight = '';
+      if (isKeyboardOpen !== keyboardOpen) {
+        keyboardOpen = isKeyboardOpen;
+        
+        if (keyboardOpen && isMobile) {
+          document.body.classList.add('keyboard-open');
+          // Adjust modal for keyboard
+          modal.style.maxHeight = '55vh';
+          modal.style.borderRadius = '20px 20px 0 0';
+        } else {
+          document.body.classList.remove('keyboard-open');
+          if (!isCollapsed) {
+            modal.style.maxHeight = '';
+            modal.style.borderRadius = '';
+          }
         }
       }
     };
     
     window.addEventListener('resize', handleResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    }
     
     // Handle focus on inputs to scroll into view (iOS fix)
-    const inputs = modal.querySelectorAll('input, textarea');
+    const inputs = modal.querySelectorAll('input, textarea, select');
     inputs.forEach(input => {
-      input.addEventListener('focus', () => {
-        // Small delay to allow keyboard to open
+      input.addEventListener('focus', (e) => {
+        // Prevent zoom on iOS by ensuring font-size is 16px
+        if (isIOS && input.type !== 'checkbox' && input.type !== 'file') {
+          input.style.fontSize = '16px';
+        }
+        
+        // Scroll into view with delay for keyboard animation
         setTimeout(() => {
-          if (window.matchMedia('(max-width: 768px)').matches) {
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (isMobile) {
+            const rect = input.getBoundingClientRect();
+            const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            const keyboardHeight = window.innerHeight - viewportHeight;
+            
+            // If input is below keyboard, scroll it into view
+            if (rect.bottom > viewportHeight - 20) {
+              const scrollOffset = rect.bottom - viewportHeight + 100;
+              content.scrollBy({ top: scrollOffset, behavior: 'smooth' });
+            }
           }
-        }, 300);
+        }, isIOS ? 400 : 200);
+      });
+      
+      // Handle blur to reset styles
+      input.addEventListener('blur', () => {
+        if (isIOS) {
+          input.style.fontSize = '';
+        }
       });
     });
     
@@ -1245,11 +1315,23 @@
     };
     document.addEventListener('keydown', handleEscape);
     
+    // Prevent body scroll when modal is open (iOS fix)
+    const preventBodyScroll = (e) => {
+      if (isMobile && e.target === document.body) {
+        e.preventDefault();
+      }
+    };
+    document.body.addEventListener('touchmove', preventBodyScroll, { passive: false });
+    
     // Cleanup on remove
     const originalRemove = overlay.remove.bind(overlay);
     overlay.remove = () => {
       window.removeEventListener('resize', handleResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+      }
       document.removeEventListener('keydown', handleEscape);
+      document.body.removeEventListener('touchmove', preventBodyScroll);
       document.body.classList.remove('keyboard-open');
       originalRemove();
     };

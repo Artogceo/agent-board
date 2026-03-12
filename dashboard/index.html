@@ -2,12 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Optimized viewport for iPhone with safe areas -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="AgentOS">
+  
+  <!-- Android/Chrome PWA -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="AgentOS">
+  <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  
+  <!-- Format detection -->
   <meta name="format-detection" content="telephone=no">
+  
+  <!-- Prevent translation -->
+  <meta name="google" content="notranslate">
   
   <!-- iOS Splash Screen -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='24' fill='%236366f1'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='90' fill='white'%3E⬡%3C/text%3E%3C/svg%3E">
@@ -30,19 +43,40 @@
 <body>
   <!-- PIN Overlay -->
   <div id="pinOverlay" class="pin-overlay hidden">
-    <div class="pin-card">
-      <div class="pin-logo">
-        <svg viewBox="0 0 24 24" fill="none" width="40" height="40">
-          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" opacity="0.3"/>
-          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <div class="pin-screen">
+      <div class="pin-app-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#06b6d4" opacity="0.5"/>
+          <path d="M2 17L12 22L22 17" stroke="#a855f7" stroke-width="2" stroke-linecap="round"/>
+          <path d="M2 12L12 17L22 12" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="7" r="2" fill="#06b6d4"/>
         </svg>
       </div>
-      <h2 class="pin-title">AgentOS Board</h2>
-      <p class="pin-subtitle">Enter PIN to continue</p>
-      <input type="password" id="pinInput" class="pin-input" maxlength="10" placeholder="••••" autocomplete="off" inputmode="numeric" />
-      <button id="pinSubmit" class="pin-btn">Unlock</button>
+      <h1 class="pin-title">AgentOS Board</h1>
+      <p class="pin-subtitle">Enter PIN to access</p>
+      <p class="pin-dots-label">PIN CODE</p>
+      <div class="pin-dots" id="pinDots">
+        <span class="pin-dot" data-index="0"></span>
+        <span class="pin-dot" data-index="1"></span>
+        <span class="pin-dot" data-index="2"></span>
+        <span class="pin-dot" data-index="3"></span>
+      </div>
       <p id="pinError" class="pin-error hidden">Incorrect PIN</p>
+      <div class="pin-keypad">
+        <button class="pin-key" data-digit="1">1</button>
+        <button class="pin-key" data-digit="2">2</button>
+        <button class="pin-key" data-digit="3">3</button>
+        <button class="pin-key" data-digit="4">4</button>
+        <button class="pin-key" data-digit="5">5</button>
+        <button class="pin-key" data-digit="6">6</button>
+        <button class="pin-key" data-digit="7">7</button>
+        <button class="pin-key" data-digit="8">8</button>
+        <button class="pin-key" data-digit="9">9</button>
+        <button class="pin-key pin-key-back" id="pinBackspace">⌫</button>
+        <button class="pin-key" data-digit="0">0</button>
+        <button class="pin-key pin-key-ok" id="pinSubmit">OK</button>
+      </div>
+      <p class="pin-footer">Access restricted to authorized personnel only</p>
     </div>
   </div>
 
@@ -145,6 +179,20 @@
     </button>
   </nav>
 
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered:', registration.scope);
+          })
+          .catch((error) => {
+            console.log('SW registration failed:', error);
+          });
+      });
+    }
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
