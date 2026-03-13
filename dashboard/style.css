@@ -1827,6 +1827,12 @@ header h1 .brand-sub {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+
+#pinSubmit, #pinBackspace {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
 .pin-key:active,
 .pin-key.pressed {
   background: #2a3555;
@@ -2664,4 +2670,44 @@ body.detail-panel-open {
   .filter-bar {
     display: none !important;
   }
+}
+
+/* --- Loading Spinner Overlay --- */
+body.loading::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.15);
+  z-index: 9990;
+  pointer-events: none;
+}
+
+body.loading::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loadingSpin 0.7s linear infinite;
+  z-index: 9991;
+  pointer-events: none;
+}
+
+@keyframes loadingSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* #projectSelect — mobile touch fix */
+#projectSelect, #projectSelectDesktop {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
 }

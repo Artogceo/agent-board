@@ -4,15 +4,29 @@
 
   // --- PIN Protection ---
   const PIN_SESSION_KEY = "ab-pin-unlocked";
+  const PIN_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+  function isPinUnlocked() {
+    try {
+      const val = sessionStorage.getItem(PIN_SESSION_KEY);
+      if (!val) return false;
+      return Date.now() - parseInt(val, 10) < PIN_TTL_MS;
+    } catch { return false; }
+  }
+
+  function setPinUnlocked() {
+    try { sessionStorage.setItem(PIN_SESSION_KEY, String(Date.now())); } catch {}
+  }
+
   function checkPin() {
-    if (sessionStorage.getItem(PIN_SESSION_KEY) === "1") return;
+    if (isPinUnlocked()) return;
     fetch("/api/auth/pin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pin: "" })
     }).then(r => r.json()).then(data => {
       if (data.ok) {
-        sessionStorage.setItem(PIN_SESSION_KEY, "1");
+        setPinUnlocked();
       } else {
         const overlay = document.getElementById("pinOverlay");
         if (overlay) overlay.classList.remove("hidden");
@@ -58,7 +72,7 @@
         body: JSON.stringify({ pin: pinValue })
       }).then(r => r.json()).then(data => {
         if (data.ok) {
-          sessionStorage.setItem(PIN_SESSION_KEY, "1");
+          setPinUnlocked();
           if (overlay) overlay.classList.add("hidden");
           document.body.classList.remove("pin-active");
           if (errEl) errEl.classList.add("hidden");
@@ -81,21 +95,46 @@
     }
 
     document.querySelectorAll(".pin-key[data-digit]").forEach(btn => {
-      btn.addEventListener("click", () => {
+      // touchstart for instant response (eliminates 300ms delay on mobile)
+      btn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        btn.classList.add("pressed");
+        setTimeout(() => btn.classList.remove("pressed"), 100);
+        addDigit(btn.dataset.digit);
+      }, { passive: false });
+      btn.addEventListener("click", (e) => {
+        // only handle if not already handled by touchstart
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
         btn.classList.add("pressed");
         setTimeout(() => btn.classList.remove("pressed"), 100);
         addDigit(btn.dataset.digit);
       });
     });
     const bkBtn = document.getElementById("pinBackspace");
-    if (bkBtn) bkBtn.addEventListener("click", () => {
-      bkBtn.classList.add("pressed");
-      setTimeout(() => bkBtn.classList.remove("pressed"), 100);
-      backspace();
-    });
-    if (okBtn) okBtn.addEventListener("click", () => {
-      if (pinValue.length === MAX_DIGITS) tryUnlock();
-    });
+    if (bkBtn) {
+      bkBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        bkBtn.classList.add("pressed");
+        setTimeout(() => bkBtn.classList.remove("pressed"), 100);
+        backspace();
+      }, { passive: false });
+      bkBtn.addEventListener("click", (e) => {
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+        bkBtn.classList.add("pressed");
+        setTimeout(() => bkBtn.classList.remove("pressed"), 100);
+        backspace();
+      });
+    }
+    if (okBtn) {
+      okBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (pinValue.length === MAX_DIGITS) tryUnlock();
+      }, { passive: false });
+      okBtn.addEventListener("click", (e) => {
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+        if (pinValue.length === MAX_DIGITS) tryUnlock();
+      });
+    }
     document.addEventListener("keydown", (e) => {
       if (!overlay || overlay.classList.contains("hidden")) return;
       if (/^[0-9]$/.test(e.key)) addDigit(e.key);
@@ -204,9 +243,14 @@
   }
 
   async function refresh() {
-    await Promise.all([loadProjects(), loadAgents()]);
-    await loadTasks();
-    render();
+    document.body.classList.add("loading");
+    try {
+      await Promise.all([loadProjects(), loadAgents()]);
+      await loadTasks();
+      render();
+    } finally {
+      document.body.classList.remove("loading");
+    }
   }
 
   // --- Project selector ---
