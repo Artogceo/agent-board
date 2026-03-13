@@ -1082,21 +1082,25 @@
       const isUser = userAuthors.includes((c.author || "").toLowerCase());
       const isSpec = c.type === 'spec';
       const isReport = c.type === 'report';
-      const isSystem = c.type === 'comment' && getMessageType(c) === 'system';
+      const isDescription = c.type === 'description';
+      const isSystem = c.author === 'system' || (c.type === 'comment' && getMessageType(c) === 'system');
 
       if (isSystem) {
-        return `<div class="tl-msg tl-system"><span>${esc(c.text)}</span><span class="tl-time">${fmtTime(c.at)}</span></div>`;
+        return `<div class="chat-bubble chat-system"><span>${esc(c.text)}</span><span class="chat-meta">${c.at ? fmtTime(c.at) : ''}</span></div>`;
       }
 
       let bubbleClass = 'chat-bubble ';
       if (isSpec) bubbleClass += 'chat-spec';
       else if (isReport) bubbleClass += 'chat-report';
+      else if (isDescription) bubbleClass += 'chat-description';
       else if (isUser) bubbleClass += 'chat-user';
       else bubbleClass += 'chat-agent';
 
-      return `<div class="${bubbleClass}">
+      const authorLabel = c.author ? `<div class="chat-author">${esc(c.author)}</div>` : '';
+
+      return `${authorLabel}<div class="${bubbleClass}">
         <div class="chat-bubble-text">${esc(c.text)}</div>
-        <div class="chat-meta">${esc(c.author || '')}${c.at ? ' · ' + fmtTime(c.at) : ''}</div>
+        <div class="chat-meta">${c.at ? fmtTime(c.at) : ''}</div>
       </div>`;
     }).join("");
     el.scrollTop = el.scrollHeight;
