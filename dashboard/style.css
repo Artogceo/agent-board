@@ -18,6 +18,13 @@
   --col-review: #a855f7;
   --col-done: #22c55e;
   --col-failed: #ef4444;
+  /* Chat bubble tokens */
+  --chat-agent-bg: #e5e7eb;
+  --chat-agent-text: #1f2937;
+  --chat-spec-bg: #eff6ff;
+  --chat-spec-text: #1e40af;
+  --chat-report-bg: #f0fdf4;
+  --chat-report-text: #166534;
 }
 
 [data-theme="dark"] {
@@ -28,6 +35,13 @@
   --text-muted: #94a3b8;
   --border: #334155;
   --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  /* Chat bubble tokens — dark overrides */
+  --chat-agent-bg: #374151;
+  --chat-agent-text: #f3f4f6;
+  --chat-spec-bg: #1e3a5f;
+  --chat-spec-text: #bfdbfe;
+  --chat-report-bg: #14432a;
+  --chat-report-text: #86efac;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -946,7 +960,7 @@ header h1 .brand-sub {
   overflow-y: auto;
   flex: 1;
   min-height: 200px;
-  background: #111827;
+  background: var(--bg);
   border-radius: 8px;
   margin: 8px 0;
 }
@@ -973,15 +987,15 @@ header h1 .brand-sub {
 
 .chat-bubble.chat-agent {
   align-self: flex-start;
-  background: #374151;
-  color: #f3f4f6;
+  background: var(--chat-agent-bg);
+  color: var(--chat-agent-text);
   border-bottom-left-radius: 4px;
 }
 
 .chat-bubble.chat-spec {
   align-self: flex-start;
-  background: #1e3a5f;
-  color: #bfdbfe;
+  background: var(--chat-spec-bg);
+  color: var(--chat-spec-text);
   border-left: 3px solid #3b82f6;
   font-family: monospace;
   font-size: 11px;
@@ -991,8 +1005,8 @@ header h1 .brand-sub {
 
 .chat-bubble.chat-report {
   align-self: flex-start;
-  background: #14432a;
-  color: #86efac;
+  background: var(--chat-report-bg);
+  color: var(--chat-report-text);
   border-left: 3px solid #22c55e;
   max-width: 95%;
   border-bottom-left-radius: 4px;
@@ -1009,13 +1023,13 @@ header h1 .brand-sub {
 .chat-bubble.chat-system {
   align-self: center;
   background: transparent;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 4px;
   max-width: 100%;
   text-align: center;
-  border: 1px solid #374151;
+  border: 1px solid var(--border);
 }
 
 .chat-meta {
@@ -1027,7 +1041,7 @@ header h1 .brand-sub {
 
 .chat-author {
   font-size: 10px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 2px;
   padding: 0 4px;
 }
