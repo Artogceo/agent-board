@@ -5,7 +5,7 @@
   --text: #1a1a2e;
   --text-muted: #6b7280;
   --border: #e2e4e9;
-  --accent: #6366f1;
+  --accent: #0d9488;
   --accent-light: #818cf8;
   --danger: #ef4444;
   --success: #22c55e;
@@ -13,7 +13,7 @@
   --shadow: 0 1px 3px rgba(0,0,0,0.08);
   --radius: 8px;
   --col-backlog: #94a3b8;
-  --col-todo: #6366f1;
+  --col-todo: #0d9488;
   --col-doing: #f59e0b;
   --col-review: #a855f7;
   --col-done: #22c55e;
@@ -1870,7 +1870,7 @@ header h1 .brand-sub {
   position: absolute;
   inset: -2px;
   border-radius: 22px;
-  background: linear-gradient(135deg, #06b6d4, #6366f1, #a855f7);
+  background: linear-gradient(135deg, #06b6d4, #0d9488, #a855f7);
   z-index: -1;
   opacity: 0.9;
   filter: blur(1px);
@@ -1880,7 +1880,7 @@ header h1 .brand-sub {
   position: absolute;
   inset: -4px;
   border-radius: 24px;
-  background: linear-gradient(135deg, #06b6d4, #6366f1, #a855f7);
+  background: linear-gradient(135deg, #06b6d4, #0d9488, #a855f7);
   z-index: -2;
   opacity: 0.3;
   filter: blur(8px);
@@ -1971,7 +1971,7 @@ header h1 .brand-sub {
 .pin-key.pressed {
   background: #2a3555;
   transform: scale(0.94);
-  box-shadow: 0 0 0 1px #6366f1 inset;
+  box-shadow: 0 0 0 1px #0d9488 inset;
 }
 .pin-key-back {
   color: #6b7280;
@@ -1985,7 +1985,7 @@ header h1 .brand-sub {
 }
 .pin-key-ok.active {
   color: #ffffff;
-  background: linear-gradient(135deg, #6366f1, #a855f7);
+  background: linear-gradient(135deg, #0d9488, #a855f7);
   border-color: transparent;
   box-shadow: 0 4px 16px rgba(99,102,241,0.4);
 }
