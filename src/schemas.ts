@@ -64,6 +64,7 @@ export const CreateAttachmentSchema = z.object({
 
 export const MoveTaskSchema = z.object({
   column: TaskColumnSchema,
+  completion_report: z.string().optional(),
 });
 
 export const CreateProjectSchema = z.object({

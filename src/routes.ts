@@ -575,11 +575,34 @@ router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Resp
     details: `Created task "${created.title}"`,
   });
 
-  // Always notify org; for other agents notify on high/urgent priority
-  if (created.column === "todo" && created.assignee) {
-    if (created.assignee === "org" || created.priority === "high" || created.priority === "urgent") {
-      notifyAgent(created, undefined, "task.create").catch(() => {});
+  // Auto-dispatch: created directly in "todo" with assignee "org" → try to auto-move to doing (any project)
+  if (created.column === "todo" && created.assignee === "org") {
+    const allTasksNow = store.getTasks({});
+    const doingCount = allTasksNow.filter(t => t.column === "doing" && !t.archived).length;
+    console.log(`[auto-dispatch] task ${created.id} created in todo, doingCount=${doingCount}`);
+    if (doingCount < 2) {
+      const autoResult = await moveTask(created.id, "doing");
+      if ("task" in autoResult) {
+        const msg = `[AgentBoard] Новая задача для выполнения.\n\nID: ${autoResult.task.id}\nЗаголовок: ${autoResult.task.title}\nПриоритет: ${autoResult.task.priority}\nОписание: ${autoResult.task.description || ""}\n\nЗадача уже в статусе 'doing'. Делегируй подходящему субагенту, дождись announce, затем переведи в review.`;
+        notifyAgent(autoResult.task, msg, "task.autodispatch").catch(() => {});
+        const shortId = autoResult.task.id.slice(-8);
+        sendTelegramDirect(`⚙️ <b>Задача взята в работу</b>\n\n📌 ${autoResult.task.title}\n🆔 ${shortId}\n⚡ ${autoResult.task.priority}`).catch(() => {});
+        console.log(`[auto-dispatch] auto-moved created task ${autoResult.task.id} to doing`);
+      } else {
+        // auto-move failed → notify org from todo
+        const msg = `[AgentBoard] Новая задача в todo.\n\nID: ${created.id}\nЗаголовок: ${created.title}\nПриоритет: ${created.priority}\nОписание: ${created.description || ""}\n\nЗадача в статусе 'todo'. Напиши ТЗ, затем переведи в doing и делегируй субагенту.`;
+        notifyAgent(created, msg, "task.autodispatch").catch(() => {});
+        console.log(`[auto-dispatch] auto-move failed for created task ${created.id}, notified org from todo`);
+      }
+    } else {
+      // doing is busy — notify org, task waits in todo
+      const msg = `[AgentBoard] Новая задача в todo (doing занят).\n\nID: ${created.id}\nЗаголовок: ${created.title}\nПриоритет: ${created.priority}`;
+      notifyAgent(created, msg, "task.create").catch(() => {});
+      console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, created task ${created.id} stays in todo`);
     }
+  } else if (created.column === "todo" && created.assignee && (created.priority === "high" || created.priority === "urgent")) {
+    // Non-org assignee but high/urgent priority → notify org
+    notifyAgent(created, undefined, "task.create").catch(() => {});
   }
 
   // Webhook to main disabled (pollutes Quentin's chat)
@@ -804,7 +827,7 @@ router.get("/client/:projectId", (req: Request, res: Response) => {
 // --- Move Task (convenience) ---
 
 router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, res: Response) => {
-  const { column } = req.body;
+  const { column, completion_report } = req.body;
   const taskBefore = store.getTask(req.params.id as string);
   const fromColumn = taskBefore?.column;
 
@@ -827,6 +850,35 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
     to: column,
     details: moveResult.retried ? `Moved to failed, auto-retried` : `Moved from ${fromColumn} to ${column}`,
   });
+
+  // Createya status sync: if task has a "createya:*" tag, notify issue-status-sync
+  const createyaTag = Array.isArray(moveResult.task.tags)
+    ? moveResult.task.tags.find((t: string) => t.startsWith("createya:"))
+    : undefined;
+  if (createyaTag) {
+    const syncUrl = "https://alwpnsaqelqstgqbngug.supabase.co/functions/v1/issue-status-sync";
+    const syncAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsd3Buc2FxZWxxc3RncWJuZ3VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NDQzMTIsImV4cCI6MjA4NzAyMDMxMn0.Y5fYYSEGpnSvi5G61F9xtdB2giOweG9gRrcYVp3sL-I";
+    fetch(syncUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${syncAnonKey}`,
+      },
+      body: JSON.stringify({
+        board_task_id: moveResult.task.id,
+        board_column: column,
+        completion_report: completion_report || null,
+        tag: createyaTag,
+      }),
+    })
+      .then(async (r) => {
+        const body = await r.text();
+        console.log(`[createya-sync] status=${r.status} tag=${createyaTag} col=${column} resp=${body}`);
+      })
+      .catch((err) => {
+        console.error(`[createya-sync] error for tag=${createyaTag}:`, err);
+      });
+  }
 
   // Auto-dispatch: when task moves to "todo" with assignee "org" → try to auto-move to doing and notify
   if (column === "todo" && moveResult.task.assignee === "org") {
