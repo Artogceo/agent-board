@@ -16,7 +16,6 @@
   --col-todo: #6366f1;
   --col-doing: #f59e0b;
   --col-review: #a855f7;
-  --col-rework: #f97316;
   --col-done: #22c55e;
   --col-failed: #ef4444;
 }
@@ -802,11 +801,6 @@ header h1 .brand-sub {
   background: rgba(34,197,94,0.08);
 }
 
-.tl-msg.tl-rework {
-  border-left: 3px solid var(--col-rework);
-  background: rgba(249,115,22,0.08);
-}
-
 .tl-msg.tl-escalation {
   border-left: 3px solid #8b5cf6;
   background: rgba(139,92,246,0.08);
@@ -814,7 +808,6 @@ header h1 .brand-sub {
 
 [data-theme="dark"] .tl-msg.tl-tz { background: rgba(99,102,241,0.15); }
 [data-theme="dark"] .tl-msg.tl-report { background: rgba(34,197,94,0.1); }
-[data-theme="dark"] .tl-msg.tl-rework { background: rgba(249,115,22,0.12); }
 [data-theme="dark"] .tl-msg.tl-escalation { background: rgba(139,92,246,0.12); }
 
 .tl-header {
@@ -853,7 +846,6 @@ header h1 .brand-sub {
 
 .tl-badge-tz { background: rgba(99,102,241,0.15); color: var(--accent); }
 .tl-badge-report { background: rgba(34,197,94,0.15); color: var(--success); }
-.tl-badge-rework { background: rgba(249,115,22,0.15); color: var(--col-rework); }
 .tl-badge-escalation { background: rgba(139,92,246,0.15); color: #8b5cf6; }
 
 /* --- Timeline input --- */
@@ -918,50 +910,7 @@ header h1 .brand-sub {
 }
 .btn-approve:hover { opacity: 0.88; }
 
-.btn-rework {
-  padding: 8px 16px;
-  background: var(--col-rework);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  flex: 1;
-  min-height: 44px;
-}
-.btn-rework:hover { opacity: 0.88; }
 
-.rework-comment-area {
-  margin: 0 16px 10px;
-  width: calc(100% - 32px);
-  display: flex;
-  gap: 6px;
-}
-.rework-comment-area textarea {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 13px;
-  resize: vertical;
-  min-height: 60px;
-  font-family: inherit;
-}
-.rework-comment-area button {
-  padding: 8px 12px;
-  background: var(--col-rework);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  align-self: flex-end;
-  min-height: 44px;
-}
 
 /* --- Detail attachments --- */
 .detail-attachments {
@@ -1518,7 +1467,7 @@ header h1 .brand-sub {
     flex-shrink: 0;
   }
 
-  .btn-approve, .btn-rework {
+  .btn-approve {
     height: 40px;
     font-size: 14px;
     min-height: auto;
@@ -2195,9 +2144,6 @@ input, textarea, select, button {
     flex-shrink: unset !important;
   }
   .detail-attachments {
-    flex-shrink: unset !important;
-  }
-  .rework-comment-area {
     flex-shrink: unset !important;
   }
 

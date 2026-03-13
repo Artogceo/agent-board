@@ -9,7 +9,7 @@ export interface MoveResult {
   error?: string;
 }
 
-const VALID_COLUMNS: TaskColumn[] = ["backlog", "todo", "doing", "review", "rework", "done", "failed"];
+const VALID_COLUMNS: TaskColumn[] = ["backlog", "todo", "doing", "review", "done", "failed"];
 
 export async function moveTask(taskId: string, column: TaskColumn): Promise<MoveResult | { error: string; requiresReview?: boolean }> {
   if (!column) return { error: "column is required" };

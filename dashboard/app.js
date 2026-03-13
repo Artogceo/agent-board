@@ -108,8 +108,8 @@
   document.addEventListener("DOMContentLoaded", () => { setupPinForm(); checkPin(); });
   // --- End PIN Protection ---
 
-  const COLUMNS = ["backlog", "todo", "doing", "review", "rework", "done", "failed"];
-  const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", rework: "Rework", done: "Done", failed: "Failed" };
+  const COLUMNS = ["backlog", "todo", "doing", "review", "done", "failed"];
+  const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", done: "Done", failed: "Failed" };
 
   // Load saved project from localStorage
   function getSavedProject() {
@@ -211,22 +211,27 @@
 
   // --- Project selector ---
   const projectSelect = document.getElementById("projectSelect");
+  const projectSelectDesktop = document.getElementById("projectSelectDesktop");
+
   function renderProjectSelect() {
-    if (!state.projects.length) {
-      projectSelect.innerHTML = '<option value="">No projects</option>';
-      return;
-    }
-    projectSelect.innerHTML = state.projects
-      .map((p) => `<option value="${p.id}" ${p.id === state.currentProject ? "selected" : ""}>${p.name}</option>`)
-      .join("");
+    const options = state.projects.length
+      ? state.projects.map((p) => `<option value="${p.id}" ${p.id === state.currentProject ? "selected" : ""}>${p.name}</option>`).join("")
+      : '<option value="">No projects</option>';
+    if (projectSelect) projectSelect.innerHTML = options;
+    if (projectSelectDesktop) projectSelectDesktop.innerHTML = options;
   }
 
-  projectSelect.addEventListener("change", async () => {
-    state.currentProject = projectSelect.value;
+  function onProjectChange(value) {
+    state.currentProject = value;
     saveCurrentProject(state.currentProject);
-    await loadTasks();
-    render();
-  });
+    // Keep both selectors in sync
+    if (projectSelect) projectSelect.value = value;
+    if (projectSelectDesktop) projectSelectDesktop.value = value;
+    loadTasks().then(() => render());
+  }
+
+  if (projectSelect) projectSelect.addEventListener("change", () => onProjectChange(projectSelect.value));
+  if (projectSelectDesktop) projectSelectDesktop.addEventListener("change", () => onProjectChange(projectSelectDesktop.value));
 
   // --- Agent filter ---
   const agentFilter = document.getElementById("agentFilter");
@@ -479,7 +484,7 @@
 
     const COL_COLORS = {
       backlog: "var(--col-backlog)", todo: "var(--col-todo)", doing: "var(--col-doing)",
-      review: "var(--col-review)", rework: "var(--col-rework)", done: "var(--col-done)", failed: "var(--col-failed)"
+      review: "var(--col-review)", done: "var(--col-done)", failed: "var(--col-failed)"
     };
 
     filterBar.innerHTML = COLUMNS.map((col) => {
@@ -990,7 +995,7 @@
       if (type === "system") {
         return `<div class="tl-msg tl-system"><span>${esc(c.text)}</span><span class="tl-time">${fmtTime(c.at)}</span></div>`;
       }
-      const badges = { tz: "TZ", report: "Report", rework: "Rework", escalation: "Escalation" };
+      const badges = { tz: "TZ", report: "Report", escalation: "Escalation" };
       const badge = badges[type] ? `<span class="tl-badge tl-badge-${type}">${badges[type]}</span>` : "";
       return `<div class="tl-msg tl-${type}">
         <div class="tl-header"><span class="tl-author">${esc(c.author)}</span>${badge}<span class="tl-time">${fmtTime(c.at)}</span></div>
@@ -1032,16 +1037,9 @@
     }).join("");
 
     const approveLabel = task.planningMode ? "\u2705 Approve TZ" : "\u2705 Approve";
-    const reworkLabel = task.planningMode ? "\uD83D\uDD01 Rework TZ" : "\uD83D\uDD01 Request Rework";
-    const reworkPlaceholder = task.planningMode ? "What needs to change in the TZ..." : "Describe what needs to be fixed...";
     const reviewHtml = task.column === "review" ? `
       <div class="detail-actions">
         <button class="btn-approve" id="approveBtn">${approveLabel}</button>
-        <button class="btn-rework" id="reworkBtn">${reworkLabel}</button>
-      </div>
-      <div class="rework-comment-area hidden" id="reworkArea">
-        <textarea id="reworkComment" placeholder="${reworkPlaceholder}"></textarea>
-        <button id="reworkSubmitBtn">Send</button>
       </div>
     ` : "";
 
@@ -1236,25 +1234,6 @@
         render();
       });
 
-      document.getElementById("reworkBtn").addEventListener("click", () => {
-        document.getElementById("reworkArea").classList.toggle("hidden");
-        document.getElementById("reworkComment").focus();
-      });
-
-      document.getElementById("reworkSubmitBtn").addEventListener("click", async () => {
-        const reason = document.getElementById("reworkComment").value.trim();
-        await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "rework" }) });
-        await api("/tasks/" + taskId, { method: "PATCH", body: JSON.stringify({ assignee: "org" }) });
-        if (reason) {
-          await api("/tasks/" + taskId + "/comments", {
-            method: "POST",
-            body: JSON.stringify({ author: "reviewer", text: "\uD83D\uDD04 Rework requested: " + reason }),
-          });
-        }
-        _closePanel();
-        await loadTasks();
-        render();
-      });
     }
 
     // Attachment upload

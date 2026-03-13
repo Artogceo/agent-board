@@ -829,11 +829,10 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
   });
 
   // Notify org when task moves to key columns
-  if (column === "doing" || column === "review" || column === "rework" || column === "failed") {
+  if (column === "doing" || column === "review" || column === "failed") {
     const contextMap: Record<string, string> = {
       doing: "Task moved to doing",
       review: "Task ready for human review",
-      rework: "Task returned for rework — read comments for reason, re-write TZ and re-delegate",
       failed: "Task has failed",
     };
     // All webhooks go to org (notifyAgent routes to org internally)

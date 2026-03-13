@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const TaskColumnSchema = z.enum(["backlog", "todo", "doing", "review", "rework", "done", "failed"]);
+const TaskColumnSchema = z.enum(["backlog", "todo", "doing", "review", "done", "failed"]);
 const TaskPrioritySchema = z.enum(["low", "medium", "high", "urgent"]);
 
 const NextTaskSchema = z.object({

@@ -24,7 +24,7 @@ export interface Attachment {
   uploadedAt: string;
 }
 
-export type TaskColumn = "backlog" | "todo" | "doing" | "review" | "rework" | "done" | "failed";
+export type TaskColumn = "backlog" | "todo" | "doing" | "review" | "done" | "failed";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface NextTask {
