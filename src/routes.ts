@@ -852,10 +852,12 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
   });
 
   // Createya status sync: if task has a "createya:*" tag, notify issue-status-sync
+  // Only sync for active columns — skip "todo"/"backlog" to prevent NEEDS_FIX infinite loop
+  const SYNC_COLUMNS = ["doing", "review", "done", "failed"];
   const createyaTag = Array.isArray(moveResult.task.tags)
     ? moveResult.task.tags.find((t: string) => t.startsWith("createya:"))
     : undefined;
-  if (createyaTag) {
+  if (createyaTag && SYNC_COLUMNS.includes(column)) {
     const syncUrl = "https://alwpnsaqelqstgqbngug.supabase.co/functions/v1/issue-status-sync";
     const syncAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsd3Buc2FxZWxxc3RncWJuZ3VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NDQzMTIsImV4cCI6MjA4NzAyMDMxMn0.Y5fYYSEGpnSvi5G61F9xtdB2giOweG9gRrcYVp3sL-I";
     fetch(syncUrl, {
