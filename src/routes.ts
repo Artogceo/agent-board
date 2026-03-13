@@ -828,6 +828,32 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
     details: moveResult.retried ? `Moved to failed, auto-retried` : `Moved from ${fromColumn} to ${column}`,
   });
 
+  // Auto-dispatch: when task moves to "todo" with assignee "org" → try to auto-move to doing and notify
+  if (column === "todo" && moveResult.task.assignee === "org") {
+    const allTasks = store.getTasks({});
+    const doingCount = allTasks.filter(t => t.column === "doing" && !t.archived).length;
+    console.log(`[auto-dispatch] task ${moveResult.task.id} landed in todo, doingCount=${doingCount}`);
+    if (doingCount < 2) {
+      // Try to auto-move to doing (may fail if no technicalSpec)
+      const autoResult = await moveTask(moveResult.task.id, "doing");
+      if ("task" in autoResult) {
+        const msg = `[AgentBoard] Новая задача для выполнения.\n\nID: ${autoResult.task.id}\nЗаголовок: ${autoResult.task.title}\nПриоритет: ${autoResult.task.priority}\nОписание: ${autoResult.task.description || ""}\n\nЗадача уже в статусе 'doing'. Делегируй подходящему субагенту, дождись announce, затем переведи в review.`;
+        notifyAgent(autoResult.task, msg, "task.autodispatch").catch(() => {});
+        const shortId1 = autoResult.task.id.slice(-8);
+        sendTelegramDirect(`⚙️ <b>Задача взята в работу</b>\n\n📌 ${autoResult.task.title}\n🆔 ${shortId1}\n⚡ ${autoResult.task.priority}`).catch(() => {});
+        console.log(`[auto-dispatch] auto-moved ${autoResult.task.id} to doing, webhook sent`);
+      } else {
+        // auto-move failed (e.g. no technicalSpec) — notify org to handle it from todo
+        const msg = `[AgentBoard] Новая задача в todo.\n\nID: ${moveResult.task.id}\nЗаголовок: ${moveResult.task.title}\nПриоритет: ${moveResult.task.priority}\nОписание: ${moveResult.task.description || ""}\n\nЗадача в статусе 'todo'. Напиши ТЗ, затем переведи в doing и делегируй субагенту.`;
+        notifyAgent(moveResult.task, msg, "task.autodispatch").catch(() => {});
+        console.log(`[auto-dispatch] auto-move failed for ${moveResult.task.id}: ${"error" in autoResult ? autoResult.error : "unknown"}, notified org from todo`);
+      }
+    } else {
+      // doing is busy — task waits in todo, org will pick it up on heartbeat
+      console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, task ${moveResult.task.id} stays in todo (heartbeat fallback)`);
+    }
+  }
+
   // Notify org when task moves to key columns
   if (column === "doing" || column === "review" || column === "failed") {
     const contextMap: Record<string, string> = {
@@ -874,6 +900,40 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
   // Notify on chained task
   if (moveResult.chainedTask) {
     notifyAgent(moveResult.chainedTask, `Chained from "${moveResult.task.title}" by ${moveResult.task.assignee}`, "task.create").catch(() => {});
+  }
+
+  // Auto-dispatch next todo task when a slot in doing frees up
+  if ((column === "review" || column === "done" || column === "failed") && fromColumn === "doing") {
+    const allTasksAfter = store.getTasks({});
+    const doingCount = allTasksAfter.filter(t => t.column === "doing" && !t.archived).length;
+    console.log(`[auto-dispatch] task ${moveResult.task.id} left doing, doingCount now=${doingCount}`);
+    if (doingCount < 2) {
+      const todoTasks = allTasksAfter
+        .filter(t => t.column === "todo" && t.assignee === "org" && !t.archived)
+        .sort((a, b) => {
+          const order: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+          return (order[a.priority] ?? 2) - (order[b.priority] ?? 2);
+        });
+      if (todoTasks.length > 0) {
+        const nextTask = todoTasks[0];
+        console.log(`[auto-dispatch] picking next todo task ${nextTask.id} "${nextTask.title}"`);
+        const autoResult = await moveTask(nextTask.id, "doing");
+        if ("task" in autoResult) {
+          const msg = `[AgentBoard] Новая задача для выполнения.\n\nID: ${autoResult.task.id}\nЗаголовок: ${autoResult.task.title}\nПриоритет: ${autoResult.task.priority}\nОписание: ${autoResult.task.description || ""}\n\nЗадача уже в статусе 'doing'. Делегируй подходящему субагенту, дождись announce, затем переведи в review.`;
+          notifyAgent(autoResult.task, msg, "task.autodispatch").catch(() => {});
+          const shortId2 = autoResult.task.id.slice(-8);
+          sendTelegramDirect(`⚙️ <b>Задача взята в работу</b>\n\n📌 ${autoResult.task.title}\n🆔 ${shortId2}\n⚡ ${autoResult.task.priority}`).catch(() => {});
+          console.log(`[auto-dispatch] auto-moved next task ${autoResult.task.id} to doing, webhook sent`);
+        } else {
+          // auto-move failed (no technicalSpec) — notify org to handle from todo
+          const msg = `[AgentBoard] Новая задача в todo.\n\nID: ${nextTask.id}\nЗаголовок: ${nextTask.title}\nПриоритет: ${nextTask.priority}\nОписание: ${nextTask.description || ""}\n\nСлот в doing освободился. Задача в 'todo' — напиши ТЗ и делегируй.`;
+          notifyAgent(nextTask, msg, "task.autodispatch").catch(() => {});
+          console.log(`[auto-dispatch] next task ${nextTask.id} auto-move failed: ${"error" in autoResult ? autoResult.error : "unknown"}, notified org`);
+        }
+      } else {
+        console.log(`[auto-dispatch] no todo tasks for org, nothing to dispatch`);
+      }
+    }
   }
 
   res.json(moveResult);

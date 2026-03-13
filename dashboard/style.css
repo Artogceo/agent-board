@@ -2711,3 +2711,14 @@ body.loading::before {
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
 }
+
+/* Task short ID on cards */
+.task-id {
+  font-size: 10px;
+  color: var(--text-muted, #666);
+  font-family: monospace;
+  opacity: 0.6;
+  user-select: all;
+  white-space: nowrap;
+  flex-shrink: 0;
+}

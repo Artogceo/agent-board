@@ -700,6 +700,7 @@
       <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}">
         <div class="card-header-row">
           <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
+          <span class="task-id">#${task.id.slice(-8)}</span>
           <button class="card-delete-btn" data-delete-id="${task.id}" title="Delete task" aria-label="Delete">\uD83D\uDDD1</button>
         </div>
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
