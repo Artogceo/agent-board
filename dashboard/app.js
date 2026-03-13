@@ -1027,24 +1027,76 @@
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " \u00B7 " + d.toLocaleDateString([], { day: "numeric", month: "short" });
   }
 
-  function renderTimeline(comments) {
-    const el = document.getElementById("timelineMessages");
+  function buildChatHistory(task) {
+    const items = [];
+
+    // 1. Описание задачи
+    if (task.description) {
+      items.push({
+        type: 'description',
+        author: task.createdBy || 'steve',
+        text: task.description,
+        at: task.createdAt,
+      });
+    }
+
+    // 2. ТЗ — как сообщение от org
+    if (task.technicalSpec) {
+      items.push({
+        type: 'spec',
+        author: 'org',
+        text: '📋 Техническое задание\n\n' + task.technicalSpec,
+        at: task.startedAt || task.updatedAt,
+      });
+    }
+
+    // 3. Комментарии
+    for (const c of task.comments || []) {
+      items.push({ type: 'comment', ...c });
+    }
+
+    // 4. Отчёт о выполнении
+    if (task.completionReport) {
+      items.push({
+        type: 'report',
+        author: task.assignee || 'org',
+        text: '📊 Отчёт о выполнении\n\n' + task.completionReport,
+        at: task.updatedAt,
+      });
+    }
+
+    items.sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+    return items;
+  }
+
+  function renderTimeline(task) {
+    const el = document.getElementById("chatMessages");
     if (!el) return;
-    if (!comments.length) {
-      el.innerHTML = '<div class="tl-empty">No activity yet.</div>';
+    const items = buildChatHistory(task);
+    if (!items.length) {
+      el.innerHTML = '<div class="tl-empty">Нет активности.</div>';
       return;
     }
-    const sorted = [...comments].sort((a, b) => new Date(a.at) - new Date(b.at));
-    el.innerHTML = sorted.map((c) => {
-      const type = getMessageType(c);
-      if (type === "system") {
+    const userAuthors = ["steve", "reviewer"];
+    el.innerHTML = items.map((c) => {
+      const isUser = userAuthors.includes((c.author || "").toLowerCase());
+      const isSpec = c.type === 'spec';
+      const isReport = c.type === 'report';
+      const isSystem = c.type === 'comment' && getMessageType(c) === 'system';
+
+      if (isSystem) {
         return `<div class="tl-msg tl-system"><span>${esc(c.text)}</span><span class="tl-time">${fmtTime(c.at)}</span></div>`;
       }
-      const badges = { tz: "TZ", report: "Report", escalation: "Escalation" };
-      const badge = badges[type] ? `<span class="tl-badge tl-badge-${type}">${badges[type]}</span>` : "";
-      return `<div class="tl-msg tl-${type}">
-        <div class="tl-header"><span class="tl-author">${esc(c.author)}</span>${badge}<span class="tl-time">${fmtTime(c.at)}</span></div>
-        <div class="tl-text">${esc(c.text)}</div>
+
+      let bubbleClass = 'chat-bubble ';
+      if (isSpec) bubbleClass += 'chat-spec';
+      else if (isReport) bubbleClass += 'chat-report';
+      else if (isUser) bubbleClass += 'chat-user';
+      else bubbleClass += 'chat-agent';
+
+      return `<div class="${bubbleClass}">
+        <div class="chat-bubble-text">${esc(c.text)}</div>
+        <div class="chat-meta">${esc(c.author || '')}${c.at ? ' · ' + fmtTime(c.at) : ''}</div>
       </div>`;
     }).join("");
     el.scrollTop = el.scrollHeight;
@@ -1053,7 +1105,13 @@
   async function refreshTimeline(taskId) {
     try {
       const comments = await api("/tasks/" + taskId + "/comments");
-      if (currentDetailTaskId === taskId) renderTimeline(comments);
+      if (currentDetailTaskId === taskId) {
+        const task = state.tasks.find((t) => t.id === taskId);
+        if (task) {
+          const taskWithComments = { ...task, comments };
+          renderTimeline(taskWithComments);
+        }
+      }
     } catch (e) { /* ignore polling errors */ }
   }
 
@@ -1062,11 +1120,7 @@
     if (!task) return;
     currentDetailTaskId = taskId;
 
-    const complexBadge = task.complexity === "complex" ? '<span class="badge badge-complex">Complex</span>' : "";
-    const planningBadge = task.planningMode ? '<span class="badge badge-planning">\uD83D\uDCCB Planning</span>' : "";
-    const escalateBtn = task.assignee !== "pasha" && task.complexity !== "complex"
-      ? '<button class="btn-escalate" id="escalateBtn">\u26A1 Escalate to Pasha</button>'
-      : "";
+    const escalateBtn = "";
     const archiveBtn = (task.column === "done" || task.column === "failed") && !task.archived
       ? '<button class="btn-archive" id="archiveBtn">\uD83D\uDDC4 Archive</button>'
       : "";
@@ -1081,10 +1135,10 @@
       return `<span class="attachment-file" title="${esc(a.filename)}">\uD83D\uDCCE ${esc(a.filename)}</span>`;
     }).join("");
 
-    const approveLabel = task.planningMode ? "\u2705 Approve TZ" : "\u2705 Approve";
     const reviewHtml = task.column === "review" ? `
-      <div class="detail-actions">
-        <button class="btn-approve" id="approveBtn">${approveLabel}</button>
+      <div class="review-actions">
+        <button class="btn-approve" id="approveBtn">✅ Принять</button>
+        <button class="btn-rework" id="reworkBtn">🔄 На доработку</button>
       </div>
     ` : "";
 
@@ -1095,37 +1149,12 @@
           <span class="badge" style="background:var(--col-${task.column});color:#fff">${task.column}</span>
           ${task.assignee ? `<span class="badge badge-assignee">${esc(task.assignee)}</span>` : ""}
           <span class="badge badge-priority-${task.priority}">${task.priority}</span>
-          ${complexBadge}
-          ${planningBadge}
           ${unarchivedBadge}
           ${task.tags.map((t) => `<span class="badge badge-tag">${esc(t)}</span>`).join("")}
         </div>
-        ${task.description ? `<div class="detail-desc">${esc(task.description)}</div>` : ""}
-        <div class="detail-header-actions">${escalateBtn}${archiveBtn}${deleteBtn}</div>
+        <div class="detail-header-actions">${archiveBtn}${deleteBtn}</div>
       </div>
-      ${task.technicalSpec ? `
-      <div class="detail-spec-section">
-        <div class="detail-spec-toggle" id="toggleSpec">
-          <span class="detail-spec-icon">📋</span>
-          <span class="detail-spec-label">Техническое задание (ТЗ)</span>
-          <span class="detail-spec-arrow">▼</span>
-        </div>
-        <div class="detail-spec-body" id="specBody">
-          <pre class="detail-spec-content">${esc(task.technicalSpec)}</pre>
-        </div>
-      </div>` : ""}
-      ${task.completionReport ? `
-      <div class="detail-spec-section detail-report-section">
-        <div class="detail-spec-toggle" id="toggleReport">
-          <span class="detail-spec-icon">📊</span>
-          <span class="detail-spec-label">Отчёт о выполнении</span>
-          <span class="detail-spec-arrow">▼</span>
-        </div>
-        <div class="detail-spec-body" id="reportBody">
-          <pre class="detail-spec-content">${esc(task.completionReport)}</pre>
-        </div>
-      </div>` : ""}
-      <div class="timeline-container" id="timelineMessages"></div>
+      <div class="chat-container" id="chatMessages"></div>
       <div class="timeline-input">
         <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
         <div class="tl-send-row">
@@ -1143,52 +1172,7 @@
       </div>
     `;
 
-    renderTimeline(task.comments);
-
-    // Toggle technicalSpec section
-    const specToggle = document.getElementById("toggleSpec");
-    if (specToggle) {
-      specToggle.addEventListener("click", () => {
-        const body = document.getElementById("specBody");
-        const arrow = specToggle.querySelector(".detail-spec-arrow");
-        if (body) {
-          body.classList.toggle("collapsed");
-          if (arrow) arrow.textContent = body.classList.contains("collapsed") ? "▶" : "▼";
-        }
-      });
-    }
-
-    // Toggle completionReport section
-    const reportToggle = document.getElementById("toggleReport");
-    if (reportToggle) {
-      reportToggle.addEventListener("click", () => {
-        const body = document.getElementById("reportBody");
-        const arrow = reportToggle.querySelector(".detail-spec-arrow");
-        if (body) {
-          body.classList.toggle("collapsed");
-          if (arrow) arrow.textContent = body.classList.contains("collapsed") ? "▶" : "▼";
-        }
-      });
-    }
-
-    // On mobile: collapse spec/report sections by default so comments are visible
-    if (window.matchMedia("(max-width: 768px)").matches) {
-      const specBody = document.getElementById("specBody");
-      const reportBody = document.getElementById("reportBody");
-      if (specBody && task.technicalSpec) {
-        specBody.classList.add("collapsed");
-        const a = specToggle && specToggle.querySelector(".detail-spec-arrow");
-        if (a) a.textContent = "▶";
-      }
-      if (reportBody && task.completionReport) {
-        reportBody.classList.add("collapsed");
-        const a = reportToggle && reportToggle.querySelector(".detail-spec-arrow");
-        if (a) a.textContent = "▶";
-      }
-      // Scroll detail content to top to show title and comments
-      const detailContent = document.getElementById("detailContent");
-      if (detailContent) setTimeout(() => { detailContent.scrollTop = 0; }, 50);
-    }
+    renderTimeline(task);
 
     // Send comment
     async function sendComment() {
@@ -1209,7 +1193,7 @@
     commentTextEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment(); }
     });
-    
+
     // Focus handler for mobile - scroll into view when keyboard opens
     commentTextEl.addEventListener('focus', () => {
       setTimeout(() => {
@@ -1218,29 +1202,6 @@
         }
       }, 300);
     });
-
-    // Escalate to Pasha
-    const escBtn = document.getElementById("escalateBtn");
-    if (escBtn) {
-      escBtn.addEventListener("click", async () => {
-        await api("/tasks/" + taskId, {
-          method: "PATCH",
-          body: JSON.stringify({ complexity: "complex", assignee: "pasha" }),
-        });
-        await api("/tasks/" + taskId + "/comments", {
-          method: "POST",
-          body: JSON.stringify({ author: "system", text: "\u26A1 Escalated to Pasha for architectural analysis" }),
-        });
-        if (task.column !== "todo") {
-          await api("/tasks/" + taskId + "/move", {
-            method: "POST",
-            body: JSON.stringify({ column: "todo" }),
-          });
-        }
-        await loadTasks();
-        openDetail(taskId);
-      });
-    }
 
     // Archive task
     const archBtn = document.getElementById("archiveBtn");
@@ -1279,6 +1240,22 @@
         render();
       });
 
+      document.getElementById("reworkBtn").addEventListener("click", async () => {
+        const comment = prompt("Комментарий к доработке (необязательно):");
+        if (comment) {
+          await api("/tasks/" + taskId + "/comments", {
+            method: "POST",
+            body: JSON.stringify({ author: "steve", text: "🔄 " + comment }),
+          });
+        }
+        await api("/tasks/" + taskId + "/move", {
+          method: "POST",
+          body: JSON.stringify({ column: "todo" }),
+        });
+        _closePanel();
+        await loadTasks();
+        render();
+      });
     }
 
     // Attachment upload
