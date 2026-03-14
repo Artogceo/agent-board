@@ -80,7 +80,7 @@ header {
   justify-content: space-between;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 50;
   box-shadow: var(--shadow);
 }
 
@@ -628,7 +628,7 @@ header h1 .brand-sub {
   background: var(--surface);
   border-left: 1px solid var(--border);
   box-shadow: -4px 0 20px rgba(0,0,0,0.1);
-  z-index: 150;
+  z-index: 2500 !important;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -663,6 +663,7 @@ header h1 .brand-sub {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overflow-x: hidden !important;
   position: relative;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
@@ -958,27 +959,31 @@ header h1 .brand-sub {
   gap: 10px;
   padding: 12px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
   flex: 1;
   min-height: 200px;
   background: var(--bg);
   border-radius: 8px;
   margin: 8px 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .chat-bubble {
-  max-width: min(80%, calc(100vw - 64px));
+  max-width: min(82%, calc(100vw - 48px)) !important;
   padding: 8px 12px;
   border-radius: 12px;
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .chat-bubble-text {
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
 
 .chat-bubble.chat-user {
@@ -1150,6 +1155,39 @@ header h1 .brand-sub {
   min-height: 44px;
 }
 .btn-delete:hover { background: var(--danger); color: #fff; }
+
+/* --- Icon-only action buttons (БАГ 2 fix) --- */
+.icon-btn-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  opacity: 0.6;
+  line-height: 1;
+}
+.icon-btn-delete:active, .icon-btn-delete:hover { opacity: 1; background: rgba(239,68,68,0.1); }
+
+.icon-btn-archive {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  opacity: 0.6;
+  line-height: 1;
+}
+.icon-btn-archive:active, .icon-btn-archive:hover { opacity: 1; background: rgba(0,0,0,0.08); }
 
 .archive-all-btn {
   width: 100%;
@@ -1485,7 +1523,7 @@ header h1 .brand-sub {
     border-left: none;
     transform: translateY(100%);
     transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
-    z-index: 2000;
+    z-index: 2500 !important;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2952,5 +2990,21 @@ body.loading::before {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+  }
+}
+
+/* ================================================================
+   БАГ 1 FIX: z-index — detail panel must cover header
+   ================================================================ */
+header, .header, #filterBar, #viewTabs, .project-bar {
+  z-index: 50 !important;
+}
+.detail-panel {
+  z-index: 2500 !important;
+}
+/* Mobile: panel starts from bottom, not from top */
+@media (max-width: 768px) {
+  .detail-panel {
+    top: auto !important;
   }
 }

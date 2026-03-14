@@ -244,9 +244,14 @@
 
   async function refresh() {
     document.body.classList.add("loading");
+    // БАГ 4 fix: show placeholder immediately before API calls
+    const bv = document.getElementById('boardView');
+    if (bv && !bv.innerHTML.trim()) {
+      bv.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted)">⟳ Загрузка...</div>';
+    }
     try {
-      await Promise.all([loadProjects(), loadAgents()]);
-      await loadTasks();
+      // БАГ 4 fix: all three loads in parallel
+      await Promise.all([loadProjects(), loadTasks(), loadAgents()]);
       render();
     } finally {
       document.body.classList.remove("loading");
@@ -1019,6 +1024,18 @@
   // --- Panel open/close with iOS body scroll lock ---
   function _openPanel() {
     detailPanel.classList.add('open');
+    // БАГ 1 fix: dark overlay that covers header (z-index 2400, below panel at 2500)
+    if (!document.getElementById('detailOverlay')) {
+      const ov = document.createElement('div');
+      ov.id = 'detailOverlay';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2400;top:0';
+      ov.addEventListener('click', () => {
+        _closePanel();
+        if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
+        currentDetailTaskId = null;
+      });
+      document.body.appendChild(ov);
+    }
     if (window.matchMedia('(max-width: 768px)').matches) {
       const scrollY = window.scrollY || window.pageYOffset;
       document.body.style.overflow = 'hidden';
@@ -1036,6 +1053,8 @@
   }
   function _closePanel() {
     detailPanel.classList.remove('open');
+    // БАГ 1 fix: remove overlay
+    document.getElementById('detailOverlay')?.remove();
     const scrollY = parseInt(document.body.dataset.panelScrollY || '0');
     document.body.style.overflow = '';
     document.body.style.position = '';
@@ -1164,7 +1183,9 @@
       else if (isUser) bubbleClass += 'chat-user';
       else bubbleClass += 'chat-agent';
 
-      const authorLabel = c.author ? `<div class="chat-author">${authorAvatar(c.author)} ${esc(c.author)}</div>` : '';
+      const authorLabel = c.author && c.author !== 'unknown' && c.author !== 'system'
+        ? `<div class="chat-author">${authorAvatar(c.author)} ${esc(c.author)}</div>`
+        : '';
 
       return `${authorLabel}<div class="${bubbleClass}">
         <div class="chat-bubble-text">${markdownLite(c.text)}</div>
@@ -1194,9 +1215,9 @@
 
     const escalateBtn = "";
     const archiveBtn = (task.column === "done" || task.column === "failed") && !task.archived
-      ? '<button class="btn-archive" id="archiveBtn">\uD83D\uDDC4 Archive</button>'
+      ? '<button class="icon-btn-archive" id="archiveBtn" title="Archive">\uD83D\uDDC4</button>'
       : "";
-    const deleteBtn = '<button class="btn-delete" id="deleteBtn">\uD83D\uDDD1 Delete</button>';
+    const deleteBtn = '<button class="icon-btn-delete" id="deleteBtn" title="Delete">\uD83D\uDDD1</button>';
     const unarchivedBadge = task.archived ? '<span class="badge badge-archived">Archived</span>' : "";
 
     const atts = task.attachments || [];
