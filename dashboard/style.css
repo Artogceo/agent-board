@@ -312,23 +312,23 @@ header h1 .brand-name { font-size: 18px; font-weight: 800; color: var(--accent);
 
 /* Review actions */
 .review-actions {
-  display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; justify-content: center;
+  display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0; justify-content: flex-start;
 }
 
 .btn-approve {
-  padding: 4px 12px; background: #16a34a; color: #fff; border: none; border-radius: 6px;
-  font-size: 12px; font-weight: 600; cursor: pointer; flex: 0 0 auto;
-  min-height: 28px; height: 28px; touch-action: manipulation;
+  padding: 0 10px; background: #16a34a; color: #fff; border: none; border-radius: 12px;
+  font-size: 11px; font-weight: 500; cursor: pointer; flex: 0 0 auto;
+  height: 24px; line-height: 24px; touch-action: manipulation; white-space: nowrap;
 }
 .btn-approve:hover { background: #15803d; }
 
 .btn-rework {
-  padding: 4px 12px; background: #dc2626; color: #fff; border: none; border-radius: 6px;
-  font-size: 12px; font-weight: 600; cursor: pointer; flex: 0 0 auto;
-  min-height: 28px; height: 28px; touch-action: manipulation;
+  padding: 0 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 12px;
+  font-size: 11px; font-weight: 500; cursor: pointer; flex: 0 0 auto;
+  height: 24px; line-height: 24px; touch-action: manipulation; white-space: nowrap;
 }
-.btn-rework:hover { background: #b91c1c; }
+.btn-rework:hover { background: rgba(239,68,68,0.1); color: #dc2626; border-color: #dc2626; }
 
 /* --- Chat --- */
 .chat-container {
@@ -666,8 +666,8 @@ body.loading::before { content: ''; position: fixed; top: 50%; left: 50%; transf
   .tl-text-input { font-size: 15px; min-height: 38px; }
   #addCommentBtn { min-height: 44px; min-width: 64px; }
 
-  .review-actions { flex-shrink: 0; padding: 6px 12px; gap: 8px; }
-  .btn-approve, .btn-rework { min-height: 28px; height: 28px; font-size: 11px; padding: 3px 10px; flex: 0 0 auto; border-radius: 6px; }
+  .review-actions { flex-shrink: 0; padding: 6px 12px; gap: 6px; }
+  .btn-approve, .btn-rework { height: 24px; font-size: 11px; padding: 0 10px; border-radius: 12px; min-height: auto; }
   .detail-attachments { flex-shrink: 0; }
 
   /* Inputs: 16px to prevent iOS zoom */
