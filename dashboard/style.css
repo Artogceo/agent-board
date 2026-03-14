@@ -294,7 +294,8 @@ header h1 .brand-sub {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-left: 3px solid var(--border);
+  border-radius: 8px;
   padding: 12px;
   margin-bottom: 8px;
   cursor: grab;
@@ -302,6 +303,9 @@ header h1 .brand-sub {
   position: relative;
   touch-action: pan-y;
   user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .card:hover {
@@ -2913,12 +2917,12 @@ body.loading::before {
    MOBILE UX PRO MAX — P1/P2 additions
    ================================================================ */
 
-/* --- Card column border-left colors --- */
-.card-col-backlog { border-left: 3px solid var(--col-backlog); }
-.card-col-todo    { border-left: 3px solid var(--col-todo); }
-.card-col-doing   { border-left: 3px solid var(--col-doing); }
-.card-col-review  { border-left: 3px solid var(--col-review); }
-.card-col-done    { border-left: 3px solid var(--col-done); }
+/* --- Card column border-left colors (data-column attribute) --- */
+.card[data-column="backlog"] { border-left-color: var(--col-backlog); }
+.card[data-column="todo"]    { border-left-color: var(--col-todo); }
+.card[data-column="doing"]   { border-left-color: var(--col-doing); }
+.card[data-column="review"]  { border-left-color: var(--col-review); }
+.card[data-column="done"]    { border-left-color: var(--col-done); }
 
 /* --- Priority dot --- */
 .card-priority-dot {
