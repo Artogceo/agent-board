@@ -1114,6 +1114,28 @@
     return items;
   }
 
+  function markdownLite(text) {
+    if (!text) return "";
+    let s = esc(text); // сначала esc для безопасности
+    s = s.replace(/^## (.+)$/gm, "<strong>$1</strong>");
+    s = s.replace(/^# (.+)$/gm, "<strong>$1</strong>");
+    s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/`([^`]+)`/g, "<code style='background:rgba(0,0,0,0.1);padding:1px 4px;border-radius:3px;font-size:0.9em'>$1</code>");
+    s = s.replace(/\n/g, "<br>");
+    s = s.replace(/^- (.+)$/gm, "• $1");
+    return s;
+  }
+
+  function authorAvatar(author) {
+    const map = {
+      steve: "👤", org: "🎯",
+      "backend-cto": "⚡", "design-cdo": "🎨",
+      pasha: "🏗️", qa: "🔍",
+      "critic-audit": "🛡️", system: "⚙️"
+    };
+    return map[(author || "").toLowerCase()] || "🤖";
+  }
+
   function renderTimeline(task) {
     const el = document.getElementById("chatMessages");
     if (!el) return;
@@ -1141,10 +1163,10 @@
       else if (isUser) bubbleClass += 'chat-user';
       else bubbleClass += 'chat-agent';
 
-      const authorLabel = c.author ? `<div class="chat-author">${esc(c.author)}</div>` : '';
+      const authorLabel = c.author ? `<div class="chat-author">${authorAvatar(c.author)} ${esc(c.author)}</div>` : '';
 
       return `${authorLabel}<div class="${bubbleClass}">
-        <div class="chat-bubble-text">${esc(c.text)}</div>
+        <div class="chat-bubble-text">${markdownLite(c.text)}</div>
         <div class="chat-meta">${c.at ? fmtTime(c.at) : ''}</div>
       </div>`;
     }).join("");

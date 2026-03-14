@@ -975,7 +975,8 @@ header h1 .brand-sub {
 }
 
 .chat-bubble-text {
-  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .chat-bubble.chat-user {
@@ -997,9 +998,8 @@ header h1 .brand-sub {
   background: var(--chat-spec-bg);
   color: var(--chat-spec-text);
   border-left: 3px solid #3b82f6;
-  font-family: monospace;
-  font-size: 11px;
-  max-width: 95%;
+  font-size: 12px;
+  max-width: 92%;
   border-bottom-left-radius: 4px;
 }
 
@@ -1550,7 +1550,8 @@ header h1 .brand-sub {
     overflow: hidden;
   }
 
-  .timeline-container {
+  .timeline-container,
+  .chat-container {
     flex: 1;
     min-height: 200px;
     max-height: none;
@@ -2245,7 +2246,8 @@ input, textarea, select, button {
   }
 
   /* Timeline container: plain block — NO inner overflow-y */
-  .timeline-container {
+  .timeline-container,
+  .chat-container {
     overflow: visible !important;
     overflow-y: visible !important;
     height: auto !important;
@@ -2694,7 +2696,8 @@ body.detail-panel-open {
   }
 
   /* Comments (timeline): visible with its own scroll */
-  .timeline-container {
+  .timeline-container,
+  .chat-container {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: contain !important;
