@@ -294,22 +294,23 @@ header h1 .brand-sub {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  border-left: 3px solid transparent;
+  border-radius: 12px;
+  padding: 12px 12px 10px;
   margin-bottom: 8px;
   cursor: grab;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   transition: box-shadow 0.15s, transform 0.1s;
   position: relative;
   touch-action: pan-y;
   user-select: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
   transform: translateY(-1px);
 }
 
@@ -328,14 +329,16 @@ header h1 .brand-sub {
 .card-header-row {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 6px;
 }
 
 .card-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
   flex: 1;
+  word-break: break-word;
 }
 
 .card-delete-btn {
@@ -365,9 +368,9 @@ header h1 .brand-sub {
 }
 
 .card-desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -674,13 +677,13 @@ header h1 .brand-sub {
 
 /* --- Detail header --- */
 .detail-header {
-  padding: 16px 20px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .detail-header h2 {
-  font-size: 16px;
+  font-size: 15px;
   margin-bottom: 8px;
   padding-right: 50px;
 }
@@ -689,6 +692,11 @@ header h1 .brand-sub {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.detail-header .badge {
+  font-size: 10px;
+  padding: 2px 6px;
 }
 
 .detail-desc {
@@ -915,32 +923,32 @@ header h1 .brand-sub {
 }
 
 .btn-approve {
-  padding: 8px 16px;
+  padding: 6px 14px;
   background: #16a34a;
   color: #fff;
   border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  flex: 1;
-  min-height: 44px;
+  flex: 0 0 auto;
+  min-height: 32px;
   touch-action: manipulation;
 }
 .btn-approve:hover { background: #15803d; }
 
 /* --- Rework button --- */
 .btn-rework {
-  padding: 8px 16px;
+  padding: 6px 14px;
   background: #dc2626;
   color: #fff;
   border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  flex: 1;
-  min-height: 44px;
+  flex: 0 0 auto;
+  min-height: 32px;
   touch-action: manipulation;
 }
 .btn-rework:hover { background: #b91c1c; }
@@ -980,13 +988,14 @@ header h1 .brand-sub {
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
 .chat-bubble-text {
   overflow-wrap: anywhere !important;
   word-break: break-word !important;
+  white-space: pre-wrap;
 }
 
 .chat-bubble.chat-user {
@@ -1462,29 +1471,28 @@ header h1 .brand-sub {
   }
 
   .column-body {
-    max-height: 50vh;
-    padding: 10px;
+    max-height: 60vh;
+    padding: 8px 8px 16px;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Compact Cards */
+  /* Mobile Cards — inherit desktop styles, minor tweaks */
   .card {
-    padding: 10px 12px;
+    padding: 11px 12px 9px;
     margin-bottom: 8px;
-    border-radius: 10px;
+    border-radius: 12px;
     min-height: auto;
   }
 
   .card-title {
-    font-size: 14px;
-    line-height: 1.35;
+    font-size: 15px;
+    line-height: 1.3;
   }
 
   .card-desc {
-    font-size: 12px;
-    margin-top: 4px;
+    font-size: 13px;
   }
 
   .badge {
@@ -1492,24 +1500,8 @@ header h1 .brand-sub {
     font-size: 11px;
   }
 
-  .card-delete-btn {
-    width: 24px;
-    height: 24px;
-    min-width: auto;
-    min-height: auto;
-    background: transparent;
-    border-radius: 4px;
-    font-size: 16px;
-    opacity: 0.5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .card-delete-btn:active {
-    opacity: 1;
-    background: rgba(239,68,68,0.1);
-    color: var(--danger);
+  .card-menu-btn {
+    opacity: 0.55;
   }
 
   /* Detail Panel Redesign */
@@ -1550,16 +1542,21 @@ header h1 .brand-sub {
   }
 
   .detail-header {
-    padding: 12px 16px;
+    padding: 10px 16px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
 
   .detail-header h2 {
-    font-size: 16px;
+    font-size: 15px;
     padding-right: 50px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     line-height: 1.3;
+  }
+
+  .detail-header .badge {
+    font-size: 10px;
+    padding: 2px 6px;
   }
 
   #detailContent {
@@ -1604,6 +1601,16 @@ header h1 .brand-sub {
     overscroll-behavior: contain;
   }
 
+  .chat-bubble {
+    max-width: 95% !important;
+    overflow: visible !important;
+  }
+
+  .chat-bubble-text {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+  }
+
   .tl-msg {
     padding: 10px 12px;
     margin-bottom: 6px;
@@ -1614,9 +1621,25 @@ header h1 .brand-sub {
   }
 
   .timeline-input {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
     padding: 10px 16px;
     border-top: 1px solid var(--border);
     background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  #detailContent {
+    overflow: hidden;
+  }
+
+  .chat-container {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .detail-attachments {
     flex-shrink: 0;
   }
 
@@ -1645,10 +1668,13 @@ header h1 .brand-sub {
     flex-shrink: 0;
   }
 
-  .btn-approve {
-    height: 40px;
-    font-size: 14px;
-    min-height: auto;
+  .btn-approve,
+  .btn-rework {
+    height: 32px;
+    font-size: 12px;
+    min-height: 32px;
+    padding: 4px 12px;
+    flex: 0 0 auto;
   }
 
   /* Bottom Navigation */
@@ -2563,7 +2589,7 @@ body.detail-panel-open {
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: contain !important;
     max-height: none !important;
-    padding: 0 !important;
+    padding: 0 0 12px !important;
     background: transparent !important;
     border-radius: 0 !important;
     scrollbar-width: none !important;
@@ -2575,8 +2601,8 @@ body.detail-panel-open {
     min-height: 56px !important;
     touch-action: pan-y !important;
     -webkit-tap-highlight-color: transparent !important;
-    border-radius: 10px !important;
-    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    padding: 11px 12px 9px !important;
     margin-bottom: 8px !important;
   }
 
@@ -2914,23 +2940,114 @@ body.loading::before {
    MOBILE UX PRO MAX — P1/P2 additions
    ================================================================ */
 
-/* --- Card column border-left colors (data-column attribute) --- */
-.card[data-column="backlog"] { border-left-color: var(--col-backlog); }
-.card[data-column="todo"]    { border-left-color: var(--col-todo); }
-.card[data-column="doing"]   { border-left-color: var(--col-doing); }
-.card[data-column="review"]  { border-left-color: var(--col-review); }
-.card[data-column="done"]    { border-left-color: var(--col-done); }
+/* --- Priority left border strip (data-priority attribute) --- */
+.card[data-priority="urgent"] { border-left-color: #dc2626; }
+.card[data-priority="high"]   { border-left-color: #ea580c; }
+.card[data-priority="medium"] { border-left-color: #d97706; }
+.card[data-priority="low"]    { border-left-color: #16a34a; }
 
-/* --- Priority dot --- */
-.card-priority-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
+/* --- Card action menu button (⋯) --- */
+.card-menu-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 1px;
   flex-shrink: 0;
-  margin-right: 6px;
-  margin-top: 3px;
-  align-self: flex-start;
+  opacity: 0.45;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  touch-action: manipulation;
+  margin: -8px -8px -8px 0;
+}
+.card:hover .card-menu-btn,
+.card-menu-btn.active {
+  opacity: 1;
+}
+.card-menu-btn:hover,
+.card-menu-btn.active {
+  background: var(--surface-hover, rgba(0,0,0,0.06));
+  color: var(--text);
+}
+
+/* --- Status pill badge inside card --- */
+.card-status-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.card-status-backlog { background: rgba(148,163,184,0.15); color: #64748b; }
+.card-status-todo    { background: rgba(13,148,136,0.12);  color: #0d9488; }
+.card-status-doing   { background: rgba(245,158,11,0.15);  color: #d97706; }
+.card-status-review  { background: rgba(168,85,247,0.12);  color: #9333ea; }
+.card-status-done    { background: rgba(34,197,94,0.12);   color: #16a34a; }
+.card-status-failed  { background: rgba(239,68,68,0.12);   color: #dc2626; }
+
+[data-theme="dark"] .card-status-backlog { background: rgba(148,163,184,0.2); color: #94a3b8; }
+[data-theme="dark"] .card-status-todo    { background: rgba(13,148,136,0.2);  color: #2dd4bf; }
+[data-theme="dark"] .card-status-doing   { background: rgba(245,158,11,0.2);  color: #fbbf24; }
+[data-theme="dark"] .card-status-review  { background: rgba(168,85,247,0.2);  color: #c084fc; }
+[data-theme="dark"] .card-status-done    { background: rgba(34,197,94,0.2);   color: #4ade80; }
+[data-theme="dark"] .card-status-failed  { background: rgba(239,68,68,0.2);   color: #f87171; }
+
+/* --- Inline action menu (hidden by default) --- */
+.card-actions-menu {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+  animation: cam-slide-in 0.12s ease;
+}
+.card-actions-menu.open {
+  display: flex;
+}
+@keyframes cam-slide-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cam-spacer { flex: 1; }
+.cam-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: background 0.12s, color 0.12s;
+}
+.cam-btn:hover, .cam-btn:active {
+  background: var(--surface-hover, rgba(0,0,0,0.06));
+}
+.cam-delete {
+  color: var(--danger, #ef4444);
+  border-color: transparent;
+  background: transparent;
+  font-size: 15px;
+  padding: 5px 8px;
+}
+.cam-delete:hover, .cam-delete:active {
+  background: rgba(239,68,68,0.1);
 }
 
 /* --- Card assignee (small gray text) --- */
@@ -3013,12 +3130,13 @@ body.loading::before {
     min-height: 44px;
     min-width: 64px;
   }
-  .card-delete-btn {
+  .card-menu-btn {
     min-width: 44px !important;
     min-height: 44px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+  }
+  .cam-btn {
+    min-height: 40px;
+    font-size: 13px;
   }
 }
 
@@ -3073,4 +3191,107 @@ header, .header, #filterBar, #viewTabs, .project-bar {
     position: sticky !important;
     bottom: 0 !important;
   }
+}
+
+/* ================================================================
+   Card mini-actions: accept button + status select
+   ================================================================ */
+.card-mini-accept {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  border: 1.5px solid #22c55e;
+  background: transparent;
+  color: #22c55e;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.card-mini-accept:hover {
+  background: #22c55e;
+  color: #fff;
+}
+
+.card-status-select {
+  font-size: 10px;
+  max-width: 70px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.card-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+/* Detail header badges: compact */
+.detail-header .badge,
+.detail-meta-row .badge {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+/* Mobile: chat-bubble wider */
+@media (max-width: 768px) {
+  .chat-bubble {
+    max-width: 95% !important;
+  }
+}
+
+/* --- Card mini-accept button (review column) --- */
+.card-mini-accept {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid #22c55e;
+  background: transparent;
+  color: #22c55e;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  padding: 0;
+  line-height: 1;
+}
+.card-mini-accept:active {
+  background: #22c55e;
+  color: #fff;
+}
+
+/* --- Card status dropdown --- */
+.card-status-select {
+  font-size: 10px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-muted);
+  max-width: 70px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  flex-shrink: 0;
 }

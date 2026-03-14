@@ -682,18 +682,85 @@
       board.querySelectorAll(".card").forEach(initSwipeActions);
     }
 
-    // Delete task buttons on cards
-    board.querySelectorAll(".card-delete-btn").forEach((btn) => {
+    // --- Card action menu: stop propagation on menu container ---
+    board.querySelectorAll(".card-actions-menu").forEach((menu) => {
+      menu.addEventListener("click", (e) => e.stopPropagation());
+    });
+
+    // --- Card action menu (⋯ button) ---
+    board.querySelectorAll(".card-menu-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const cardId = btn.dataset.cardId;
+        const menu = document.getElementById(`cam-${cardId}`);
+        if (!menu) return;
+        const isOpen = menu.classList.contains("open");
+        // Close all other open menus
+        document.querySelectorAll(".card-actions-menu.open").forEach(m => m.classList.remove("open"));
+        document.querySelectorAll(".card-menu-btn.active").forEach(b => b.classList.remove("active"));
+        if (!isOpen) {
+          menu.classList.add("open");
+          btn.classList.add("active");
+        }
+      });
+    });
+
+    // --- Card action menu: move to status ---
+    board.querySelectorAll(".cam-move").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
+        e.preventDefault();
+        const taskId = btn.dataset.id;
+        const targetCol = btn.dataset.col;
+        document.querySelectorAll(".card-actions-menu.open").forEach(m => m.classList.remove("open"));
+        document.querySelectorAll(".card-menu-btn.active").forEach(b => b.classList.remove("active"));
+        await api(`/tasks/${taskId}/move`, { method: "POST", body: JSON.stringify({ column: targetCol }) });
+        await loadTasks();
+        render();
+      });
+    });
+
+    // --- Card action menu: delete ---
+    board.querySelectorAll(".cam-delete").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
         const taskId = btn.dataset.deleteId;
         const task = state.tasks.find((t) => t.id === taskId);
         if (!task) return;
+        document.querySelectorAll(".card-actions-menu.open").forEach(m => m.classList.remove("open"));
         if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
         await api("/tasks/" + taskId, { method: "DELETE" });
         await loadTasks();
         render();
       });
+    });
+
+    // --- Mini accept button (review → done) ---
+    board.querySelectorAll(".card-mini-accept").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const taskId = btn.dataset.id;
+        await api(`/tasks/${taskId}/move`, { method: "POST", body: JSON.stringify({ column: "done" }) });
+        await loadTasks();
+        render();
+      });
+    });
+
+    // --- Status select dropdown on cards ---
+    board.querySelectorAll(".card-status-select").forEach((sel) => {
+      sel.addEventListener("change", async (e) => {
+        e.stopPropagation();
+        const taskId = sel.dataset.id;
+        const targetCol = sel.value;
+        await api(`/tasks/${taskId}/move`, { method: "POST", body: JSON.stringify({ column: targetCol }) });
+        await loadTasks();
+        render();
+      });
+      // Prevent click from bubbling up to card (opening detail panel)
+      sel.addEventListener("click", (e) => e.stopPropagation());
     });
 
     // Click to open detail
@@ -753,21 +820,46 @@
     }
 
     // Complexity + planning indicators
-    const complexHtml = task.complexity === "complex" ? '<span class="card-tag">Complex</span>' : "";
+    const complexHtml = task.complexity === "complex" ? '<span class="card-tag">⚙ Complex</span>' : "";
     const planHtml = task.planningMode ? '<span class="card-tag">📋</span>' : "";
 
-    // Priority dot color
-    const priorityColors = { urgent: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#16a34a' };
-    const priorityColor = priorityColors[task.priority] || 'var(--text-muted)';
-    const priorityDot = `<span class="card-priority-dot" style="background:${priorityColor}" title="${task.priority}"></span>`;
+    // Status badge/pill (shows current column)
+    const colLabel = COL_LABELS[task.column] || task.column;
+    const statusPill = `<span class="card-status-pill card-status-${task.column}">${colLabel}</span>`;
+
+    // Status navigation for compact action menu
+    const STATUS_NAV = ['backlog', 'todo', 'doing', 'review', 'done'];
+    const statusIdx = STATUS_NAV.indexOf(task.column);
+    const prevStatus = statusIdx > 0 ? STATUS_NAV[statusIdx - 1] : null;
+    const nextStatus = statusIdx < STATUS_NAV.length - 1 ? STATUS_NAV[statusIdx + 1] : null;
+    const prevLabel = prevStatus ? COL_LABELS[prevStatus] : null;
+    const nextLabel = nextStatus ? COL_LABELS[nextStatus] : null;
+
+    const menuItems = [
+      prevStatus ? `<button class="cam-btn cam-move" data-id="${task.id}" data-col="${prevStatus}">← ${prevLabel}</button>` : '',
+      nextStatus ? `<button class="cam-btn cam-move" data-id="${task.id}" data-col="${nextStatus}">${nextLabel} →</button>` : '',
+      `<span class="cam-spacer"></span>`,
+      `<button class="cam-btn cam-delete" data-delete-id="${task.id}">🗑</button>`
+    ].join('');
+
+    const miniAcceptBtn = task.column === 'review'
+      ? `<button class="card-mini-accept" data-id="${task.id}" title="Принять">✓</button>`
+      : '';
+
+    const statusOptions = ['backlog','todo','doing','review','done']
+      .map(col => `<option value="${col}"${col === task.column ? ' selected' : ''}>${COL_LABELS[col] || col}</option>`)
+      .join('');
+    const statusSelect = `<select class="card-status-select" data-id="${task.id}" title="Изменить статус">${statusOptions}</select>`;
 
     return `
-      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${task.column}">
+      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${task.column}" data-priority="${task.priority}">
         <div class="card-header-row">
-          ${priorityDot}<div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
+          <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
+          <button class="card-menu-btn" data-card-id="${task.id}" aria-label="Task actions" title="Actions">⋯</button>
         </div>
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
         <div class="card-meta">
+          ${statusPill}
           ${task.assignee ? `<span class="card-assignee">${esc(task.assignee)}</span>` : ""}
           ${complexHtml}
           ${planHtml}
@@ -776,6 +868,8 @@
           ${comments}
           <span class="card-id-short">#${task.id.slice(-6)}</span>
         </div>
+        <div class="card-mini-row">${miniAcceptBtn}${statusSelect}</div>
+        <div class="card-actions-menu" id="cam-${task.id}">${menuItems}</div>
       </div>`;
   }
 
@@ -1915,5 +2009,13 @@
   document.addEventListener('DOMContentLoaded', () => {
     initFAB();
     initBottomSheet();
+
+    // Close card action menus when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.card-menu-btn') && !e.target.closest('.card-actions-menu')) {
+        document.querySelectorAll('.card-actions-menu.open').forEach(m => m.classList.remove('open'));
+        document.querySelectorAll('.card-menu-btn.active').forEach(b => b.classList.remove('active'));
+      }
+    });
   });
 })();
