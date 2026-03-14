@@ -407,24 +407,9 @@
   const ptrIndicator = document.getElementById("ptrIndicator");
   const boardView = document.getElementById("boardView");
 
-  // P1.4 + P1.5: Event delegation for card quick-action buttons (status change & accept)
+  // Event delegation for card delete button
   boardView.addEventListener('click', async (e) => {
-    // Quick status buttons
-    const qaBtn = e.target.closest('.card-qa-btn');
-    if (qaBtn) {
-      e.stopPropagation();
-      await api(`/tasks/${qaBtn.dataset.id}/move`, { method: 'POST', body: JSON.stringify({ column: qaBtn.dataset.col }) });
-      await loadTasks(); render();
-      return;
-    }
-    // Accept button (review → done)
-    const acceptBtn = e.target.closest('.card-accept-btn');
-    if (acceptBtn) {
-      e.stopPropagation();
-      await api(`/tasks/${acceptBtn.dataset.id}/move`, { method: 'POST', body: JSON.stringify({ column: 'done' }) });
-      await loadTasks(); render();
-      return;
-    }
+    // Delete button is now only in detail panel; no card-level handlers needed here
   });
 
   let _ptrInitialized = false;
@@ -746,14 +731,13 @@
   }
 
   function renderCard(task) {
-    const priorityClass = `badge-priority-${task.priority}`;
-    const tags = task.tags.map((t) => `<span class="badge badge-tag">${esc(t)}</span>`).join("");
-    const comments = task.comments.length ? `<span class="card-comments">${task.comments.length} comment${task.comments.length > 1 ? "s" : ""}</span>` : "";
+    const tags = task.tags.map((t) => `<span class="card-tag">${esc(t)}</span>`).join("");
+    const comments = task.comments.length ? `<span class="card-comments">💬 ${task.comments.length}</span>` : "";
 
     // Check unresolved dependencies
     const blockers = getUnresolvedDeps(task);
     const lockHtml = blockers.length
-      ? `<span class="badge badge-locked" title="Blocked by: ${blockers.map((b) => esc(b.title)).join(", ")}">&#x1F512; ${blockers.length} dep${blockers.length > 1 ? "s" : ""}</span>`
+      ? `<span class="badge badge-locked" title="Blocked by: ${blockers.map((b) => esc(b.title)).join(", ")}">&#x1F512; ${blockers.length}</span>`
       : "";
 
     // Check if deadline is overdue
@@ -765,47 +749,37 @@
       const isOverdue = deadlineDate < now && task.column !== "done";
       overdueClass = isOverdue ? "card-overdue" : "";
       const deadlineStr = deadlineDate.toLocaleDateString();
-      deadlineHtml = `<span class="badge badge-deadline ${isOverdue ? "badge-overdue" : ""}">${isOverdue ? "\u26A0 " : ""}\uD83D\uDCC5 ${deadlineStr}</span>`;
+      deadlineHtml = `<span class="card-deadline ${isOverdue ? "card-deadline-overdue" : ""}">${isOverdue ? "⚠ " : ""}📅 ${deadlineStr}</span>`;
     }
 
-    // Complexity + planning badges on card
-    const complexHtml = task.complexity === "complex" ? '<span class="badge badge-complex">Complex</span>' : "";
-    const planHtml = task.planningMode ? '<span class="badge badge-planning">\uD83D\uDCCB</span>' : "";
+    // Complexity + planning indicators
+    const complexHtml = task.complexity === "complex" ? '<span class="card-tag">Complex</span>' : "";
+    const planHtml = task.planningMode ? '<span class="card-tag">📋</span>' : "";
 
-    // P1.4: Quick status buttons
-    const STATUS_ORDER = ['backlog', 'todo', 'doing', 'review', 'done'];
-    const statusIdx = STATUS_ORDER.indexOf(task.column);
-    const prevStatus = statusIdx > 0 ? STATUS_ORDER[statusIdx - 1] : null;
-    const nextStatus = statusIdx < STATUS_ORDER.length - 1 ? STATUS_ORDER[statusIdx + 1] : null;
-    const quickActionsHtml = `<div class="card-quick-actions">
-      ${prevStatus ? `<button class="card-qa-btn" data-id="${task.id}" data-col="${prevStatus}">← ${prevStatus}</button>` : '<span></span>'}
-      ${nextStatus ? `<button class="card-qa-btn card-qa-next" data-id="${task.id}" data-col="${nextStatus}">${nextStatus} →</button>` : ''}
-    </div>`;
+    // Priority dot color
+    const priorityColors = { urgent: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#16a34a' };
+    const priorityColor = priorityColors[task.priority] || 'var(--text-muted)';
+    const priorityDot = `<span class="card-priority-dot" style="background:${priorityColor}" title="${task.priority}"></span>`;
 
-    // P1.5: Accept button for review cards
-    const acceptBtnHtml = task.column === 'review'
-      ? `<button class="card-accept-btn" data-id="${task.id}">✅ Принять</button>`
-      : '';
+    // Column border-left color class
+    const colClass = `card-col-${task.column}`;
 
     return `
-      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}">
+      <div class="card ${colClass} ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${task.column}">
         <div class="card-header-row">
           <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
-          <span class="task-id">#${task.id.slice(-8)}</span>
-          <button class="card-delete-btn" data-delete-id="${task.id}" title="Delete task" aria-label="Delete">\uD83D\uDDD1</button>
+          ${priorityDot}
         </div>
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
         <div class="card-meta">
-          ${task.assignee ? `<span class="badge badge-assignee">${esc(task.assignee)}</span>` : ""}
-          <span class="badge ${priorityClass}">${task.priority}</span>
+          ${task.assignee ? `<span class="card-assignee">${esc(task.assignee)}</span>` : ""}
           ${complexHtml}
           ${planHtml}
           ${tags}
           ${deadlineHtml}
           ${comments}
+          <span class="card-id-short">#${task.id.slice(-6)}</span>
         </div>
-        ${quickActionsHtml}
-        ${acceptBtnHtml}
       </div>`;
   }
 
