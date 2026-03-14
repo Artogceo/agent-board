@@ -1398,7 +1398,7 @@
       <div class="chat-container" id="chatMessages"></div>
       <div class="detail-attachments">
         <div class="detail-attach-toggle" id="toggleAttachments">\uD83D\uDCCE Attachments (${atts.length})</div>
-        <div class="detail-attach-body" id="attachBody">
+        <div class="detail-attach-body hidden" id="attachBody">
           <div class="attachment-grid" id="attachmentGrid">${attHtml}</div>
           <button class="btn-attach" id="attachBtn">\uD83D\uDCCE Attach file</button>
         </div>
