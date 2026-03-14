@@ -314,18 +314,37 @@
   const bottomNav = document.getElementById("bottomNav");
   if (bottomNav) {
     bottomNav.querySelectorAll(".bottom-nav-item").forEach(btn => {
-      btn.addEventListener("click", () => {
+      // touchstart gives instant response on iOS (no 300ms delay)
+      let _touchActivated = false;
+      btn.addEventListener('touchstart', () => {
+        _touchActivated = true;
+      }, { passive: true });
+
+      function activateNavItem(btn) {
         const view = btn.dataset.view;
+        if (!view) return;
         state.currentView = view;
         // Sync top tabs
         document.querySelectorAll(".tab").forEach(t => {
           t.classList.toggle("active", t.dataset.view === view);
         });
-        // Sync bottom nav
+        // Sync bottom nav active state
         bottomNav.querySelectorAll(".bottom-nav-item").forEach(b => {
           b.classList.toggle("active", b.dataset.view === view);
         });
         render();
+      }
+
+      btn.addEventListener('touchend', (e) => {
+        if (!_touchActivated) return;
+        _touchActivated = false;
+        e.preventDefault(); // prevent subsequent click event (300ms delay)
+        activateNavItem(btn);
+      }, { passive: false });
+
+      btn.addEventListener("click", (e) => {
+        // fallback for desktop / non-touch
+        activateNavItem(btn);
       });
     });
   }
@@ -371,19 +390,28 @@
 
   // --- Pull to refresh ---
   let ptrStartY = 0;
+  let ptrStartX = 0;
   let ptrPulling = false;
+  let ptrDirectionDecided = false; // true once direction (H or V) is locked in
+  let ptrIsHorizontal = false;     // true = horizontal swipe → skip PTR
   let ptrThreshold = 80;
   const ptrIndicator = document.getElementById("ptrIndicator");
   const boardView = document.getElementById("boardView");
 
+  let _ptrInitialized = false;
   function initPullToRefresh() {
-    // Only on mobile
+    // Only on mobile; only initialize once
     if (window.matchMedia('(min-width: 769px)').matches) return;
+    if (_ptrInitialized) return;
+    _ptrInitialized = true;
 
     boardView.addEventListener('touchstart', (e) => {
       if (boardView.scrollTop === 0) {
         ptrStartY = e.touches[0].clientY;
+        ptrStartX = e.touches[0].clientX;
         ptrPulling = true;
+        ptrDirectionDecided = false;
+        ptrIsHorizontal = false;
       }
     }, { passive: true });
 
@@ -391,11 +419,26 @@
       if (!ptrPulling) return;
       
       const y = e.touches[0].clientY;
-      const diff = y - ptrStartY;
+      const x = e.touches[0].clientX;
+      const deltaY = y - ptrStartY;
+      const deltaX = x - ptrStartX;
+
+      // Lock in swipe direction once we have enough movement (12px threshold)
+      if (!ptrDirectionDecided && (Math.abs(deltaX) > 12 || Math.abs(deltaY) > 12)) {
+        ptrDirectionDecided = true;
+        // Horizontal if deltaX is dominant (>= 1.5x deltaY)
+        ptrIsHorizontal = Math.abs(deltaX) >= Math.abs(deltaY) * 1.5;
+      }
+
+      // If horizontal swipe: let native scroll handle it, don't activate PTR
+      if (ptrIsHorizontal) {
+        ptrPulling = false;
+        return;
+      }
       
-      if (diff > 0 && boardView.scrollTop <= 0) {
+      if (deltaY > 0 && boardView.scrollTop <= 0) {
         e.preventDefault();
-        const pullDistance = Math.min(diff * 0.5, ptrThreshold + 20);
+        const pullDistance = Math.min(deltaY * 0.5, ptrThreshold + 20);
         ptrIndicator.style.transform = `translateY(${pullDistance}px)`;
         
         if (pullDistance >= ptrThreshold) {
@@ -411,6 +454,8 @@
     boardView.addEventListener('touchend', async () => {
       if (!ptrPulling) return;
       ptrPulling = false;
+      ptrDirectionDecided = false;
+      ptrIsHorizontal = false;
       
       const currentTransform = ptrIndicator.style.transform;
       const currentPull = parseInt(currentTransform.replace('translateY(', '').replace('px)', '')) || 0;
@@ -648,14 +693,14 @@
       btn.addEventListener("click", () => showTaskModal(btn.dataset.col));
     });
 
-    // Archive all done
+    // Archive all done — parallel requests for speed
     board.querySelectorAll(".archive-all-btn").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const doneTasks = state.tasks.filter((t) => t.column === "done" && !t.archived);
-        for (const t of doneTasks) {
-          await api("/tasks/" + t.id, { method: "PATCH", body: JSON.stringify({ archived: true }) });
-        }
+        await Promise.all(doneTasks.map(t =>
+          api("/tasks/" + t.id, { method: "PATCH", body: JSON.stringify({ archived: true }) })
+        ));
         await loadTasks();
         render();
       });
@@ -1315,6 +1360,16 @@
     // Detect iOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    // iOS body scroll lock — prevents modal jump on open
+    if (isMobile) {
+      const scrollY = window.scrollY || window.pageYOffset;
+      document.body.dataset.scrollY = String(scrollY);
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+    }
     
     // Close on overlay click (but not when clicking modal content)
     overlay.addEventListener("click", (e) => {
@@ -1427,32 +1482,26 @@
       modal.addEventListener('touchend', handleTouchEnd);
     }
     
-    // Handle keyboard visibility changes (iOS keyboard handling)
+    // Handle keyboard visibility changes — use visualViewport to avoid iOS jump
     const originalWindowHeight = window.innerHeight;
-    const originalVisualHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     let keyboardOpen = false;
     
     const handleResize = () => {
-      // Use visualViewport for iOS if available
-      const currentHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-      const heightDiff = originalWindowHeight - currentHeight;
+      if (!isMobile) return;
+      // visualViewport.height shrinks when keyboard opens on iOS
+      const vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const heightDiff = originalWindowHeight - vvHeight;
       const isKeyboardOpen = heightDiff > 150;
       
       if (isKeyboardOpen !== keyboardOpen) {
         keyboardOpen = isKeyboardOpen;
-        
-        if (keyboardOpen && isMobile) {
-          document.body.classList.add('keyboard-open');
-          // Adjust modal for keyboard
-          modal.style.maxHeight = '55vh';
-          modal.style.borderRadius = '20px 20px 0 0';
-        } else {
-          document.body.classList.remove('keyboard-open');
-          if (!isCollapsed) {
-            modal.style.maxHeight = '';
-            modal.style.borderRadius = '';
-          }
-        }
+        document.body.classList.toggle('keyboard-open', keyboardOpen);
+      }
+      
+      if (isMobile) {
+        // Pin modal to actual visible viewport height — prevents content jump
+        modal.style.maxHeight = vvHeight + 'px';
+        modal.style.height = vvHeight + 'px';
       }
     };
     
@@ -1521,6 +1570,15 @@
       document.removeEventListener('keydown', handleEscape);
       document.body.removeEventListener('touchmove', preventBodyScroll);
       document.body.classList.remove('keyboard-open');
+      // Restore body scroll (iOS scroll lock cleanup)
+      if (isMobile) {
+        const savedScrollY = parseInt(document.body.dataset.scrollY || '0', 10);
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, savedScrollY);
+      }
       originalRemove();
     };
     

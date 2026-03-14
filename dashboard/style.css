@@ -2032,16 +2032,15 @@ body.pin-active { overflow: hidden; }
   }
   
   body.keyboard-open .modal {
-    max-height: 55vh;
-    max-height: calc(100vh - 320px);
-    transition: max-height 0.3s ease;
+    /* JS (visualViewport handler) overrides height dynamically; keep transition only */
+    transition: max-height 0.2s ease;
   }
 
   /* Ensure modal content is scrollable when keyboard is open */
   body.keyboard-open .modal-content-scrollable {
-    max-height: calc(55vh - 120px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   /* Adjust modal position when keyboard opens */
@@ -2092,6 +2091,7 @@ body {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Ensure inputs are not hidden behind keyboard */
@@ -2771,6 +2771,12 @@ body.detail-panel-open {
     margin: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Full-height modal variant: use dvh to avoid iOS toolbar resize jumps */
+  .modal.modal-fullscreen {
+    height: 92dvh !important;
+    max-height: 92dvh !important;
   }
 
   .modal-drag-handle {
