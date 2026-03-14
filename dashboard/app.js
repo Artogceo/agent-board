@@ -276,6 +276,10 @@
     // Keep both selectors in sync
     if (projectSelect) projectSelect.value = value;
     if (projectSelectDesktop) projectSelectDesktop.value = value;
+    // Clear tasks immediately so old project's tasks don't flash
+    state.tasks = [];
+    const bv = document.getElementById('boardView');
+    if (bv) bv.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:14px">⟳ Загрузка...</div>';
     loadTasks().then(() => render());
   }
 
@@ -1249,18 +1253,18 @@
       </div>
       ${reviewHtml}
       <div class="chat-container" id="chatMessages"></div>
-      <div class="timeline-input">
-        <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
-        <div class="tl-send-row">
-          <input type="text" id="commentText" placeholder="Message..." class="tl-text-input">
-          <button class="btn btn-primary" id="addCommentBtn">Send</button>
-        </div>
-      </div>
       <div class="detail-attachments">
         <div class="detail-attach-toggle" id="toggleAttachments">\uD83D\uDCCE Attachments (${atts.length})</div>
         <div class="detail-attach-body" id="attachBody">
           <div class="attachment-grid" id="attachmentGrid">${attHtml}</div>
           <button class="btn-attach" id="attachBtn">\uD83D\uDCCE Attach file</button>
+        </div>
+      </div>
+      <div class="timeline-input">
+        <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
+        <div class="tl-send-row">
+          <input type="text" id="commentText" placeholder="Message..." class="tl-text-input">
+          <button class="btn btn-primary" id="addCommentBtn">Send</button>
         </div>
       </div>
     `;

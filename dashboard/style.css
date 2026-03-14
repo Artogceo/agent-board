@@ -3008,3 +3008,40 @@ header, .header, #filterBar, #viewTabs, .project-bar {
     top: auto !important;
   }
 }
+
+/* ================================================================
+   FIX: timeline-input sticky bottom — must be last child in #detailContent
+   #detailContent as flex column lets chat-container grow and input stay bottom
+   ================================================================ */
+#detailContent {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+.chat-container {
+  flex: 1 1 auto !important;
+  min-height: 80px;
+  overflow-y: auto;
+  overflow-x: hidden !important;
+}
+.detail-attachments {
+  flex-shrink: 0;
+}
+.timeline-input {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  background: var(--surface) !important;
+  border-top: 1px solid var(--border) !important;
+  padding: 8px 16px !important;
+  padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  z-index: 10 !important;
+}
+/* Override body.keyboard-open — no longer need fixed positioning since DOM order is correct */
+@supports (-webkit-touch-callout: none) {
+  body.keyboard-open .timeline-input {
+    position: sticky !important;
+    bottom: 0 !important;
+  }
+}
