@@ -167,6 +167,11 @@
     } catch { /* ignore */ }
   }
 
+  let currentAbortController = null;
+
+  const VALID_COLUMNS = ['backlog','todo','doing','review','done','rework','failed'];
+  function safeColumn(col) { return VALID_COLUMNS.includes(col) ? col : 'todo'; }
+
   let state = {
     projects: [],
     tasks: [],
@@ -235,7 +240,19 @@
 
   async function loadTasks() {
     if (!state.currentProject) { state.tasks = []; return; }
-    state.tasks = await api("/tasks?projectId=" + state.currentProject);
+    if (currentAbortController) currentAbortController.abort();
+    currentAbortController = new AbortController();
+    const signal = currentAbortController.signal;
+    try {
+      const res = await fetch(API + "/tasks?projectId=" + state.currentProject, {
+        headers: { "Content-Type": "application/json", "X-API-Key": "sk-dashboard-001" },
+        signal,
+      });
+      state.tasks = await res.json();
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      throw e;
+    }
   }
 
   async function loadAgents() {
@@ -824,8 +841,8 @@
     const planHtml = task.planningMode ? '<span class="card-tag">📋</span>' : "";
 
     // Status badge/pill (shows current column)
-    const colLabel = COL_LABELS[task.column] || task.column;
-    const statusPill = `<span class="card-status-pill card-status-${task.column}">${colLabel}</span>`;
+    const colLabel = COL_LABELS[safeColumn(task.column)] || safeColumn(task.column);
+    const statusPill = `<span class="card-status-pill card-status-${safeColumn(task.column)}">${colLabel}</span>`;
 
     // Status navigation for compact action menu
     const STATUS_NAV = ['backlog', 'todo', 'doing', 'review', 'done'];
@@ -852,7 +869,7 @@
     const statusSelect = `<select class="card-status-select" data-id="${task.id}" title="Изменить статус">${statusOptions}</select>`;
 
     return `
-      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${task.column}" data-priority="${task.priority}">
+      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${safeColumn(task.column)}" data-priority="${task.priority}">
         <div class="card-header-row">
           <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
           <button class="card-menu-btn" data-card-id="${task.id}" aria-label="Task actions" title="Actions">⋯</button>
@@ -1089,6 +1106,65 @@
   let threadInterval = null;
   let currentDetailTaskId = null;
 
+  // Delegated event listener for detail panel (prevents listener leaks)
+  detailContent.addEventListener("click", async (e) => {
+    const taskId = currentDetailTaskId;
+    if (!taskId) return;
+    const task = state.tasks.find(t => t.id === taskId);
+    const target = e.target.closest("[id]");
+    if (!target) return;
+    const id = target.id;
+
+    if (id === "addCommentBtn") {
+      const author = document.getElementById("commentAuthor").value.trim() || "steve";
+      const text = document.getElementById("commentText").value.trim();
+      if (!text) return;
+      document.getElementById("commentText").value = "";
+      await api("/tasks/" + taskId + "/comments", { method: "POST", body: JSON.stringify({ author, text }) });
+      await refreshTimeline(taskId);
+      await loadTasks();
+    } else if (id === "archiveBtn") {
+      await api("/tasks/" + taskId, { method: "PATCH", body: JSON.stringify({ archived: true }) });
+      _closePanel(); await loadTasks(); render();
+    } else if (id === "deleteBtn") {
+      if (!confirm(`Delete "${task?.title}"? This cannot be undone.`)) return;
+      await api("/tasks/" + taskId, { method: "DELETE" });
+      _closePanel(); await loadTasks(); render();
+    } else if (id === "toggleAttachments") {
+      document.getElementById("attachBody").classList.toggle("hidden");
+    } else if (id === "approveBtn") {
+      await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "done" }) });
+      _closePanel(); await loadTasks(); render();
+    } else if (id === "reworkBtn") {
+      const comment = prompt("Комментарий к доработке (необязательно):");
+      if (comment) {
+        await api("/tasks/" + taskId + "/comments", { method: "POST", body: JSON.stringify({ author: "steve", text: "🔄 " + comment }) });
+      }
+      await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "todo" }) });
+      _closePanel(); await loadTasks(); render();
+    }
+  });
+
+  detailContent.addEventListener("keydown", (e) => {
+    if (e.target.id === "commentText" && e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById("addCommentBtn").click();
+    }
+  });
+
+  detailContent.addEventListener("focus", (e) => {
+    if (e.target.id === "commentText") {
+      document.body.classList.add('keyboard-open');
+      setTimeout(() => e.target.scrollIntoView({ block: 'end', behavior: 'smooth' }), 350);
+    }
+  }, true);
+
+  detailContent.addEventListener("blur", (e) => {
+    if (e.target.id === "commentText") {
+      document.body.classList.remove('keyboard-open');
+    }
+  }, true);
+
   // --- Panel open/close with iOS body scroll lock ---
   function _openPanel() {
     detailPanel.classList.add('open');
@@ -1307,7 +1383,7 @@
       <div class="detail-header">
         <h2>${esc(task.title)}</h2>
         <div class="detail-meta-row">
-          <span class="badge" style="background:var(--col-${task.column});color:#fff">${task.column}</span>
+          <span class="badge" style="background:var(--col-${safeColumn(task.column)});color:#fff">${safeColumn(task.column)}</span>
           ${task.assignee ? `<span class="badge badge-assignee">${esc(task.assignee)}</span>` : ""}
           <span class="badge badge-priority-${task.priority}">${task.priority}</span>
           ${unarchivedBadge}
@@ -1335,91 +1411,7 @@
 
     renderTimeline(task);
 
-    // Send comment
-    async function sendComment() {
-      const author = document.getElementById("commentAuthor").value.trim() || "steve";
-      const text = document.getElementById("commentText").value.trim();
-      if (!text) return;
-      document.getElementById("commentText").value = "";
-      await api("/tasks/" + taskId + "/comments", {
-        method: "POST",
-        body: JSON.stringify({ author, text }),
-      });
-      await refreshTimeline(taskId);
-      await loadTasks();
-    }
-
-    document.getElementById("addCommentBtn").addEventListener("click", sendComment);
-    const commentTextEl = document.getElementById("commentText");
-    commentTextEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment(); }
-    });
-
-    // P1.7: iOS keyboard fix — lift timeline-input above keyboard
-    commentTextEl.addEventListener('focus', () => {
-      document.body.classList.add('keyboard-open');
-      setTimeout(() => commentTextEl.scrollIntoView({ block: 'end', behavior: 'smooth' }), 350);
-    });
-    commentTextEl.addEventListener('blur', () => {
-      document.body.classList.remove('keyboard-open');
-    });
-
-    // Archive task
-    const archBtn = document.getElementById("archiveBtn");
-    if (archBtn) {
-      archBtn.addEventListener("click", async () => {
-        await api("/tasks/" + taskId, { method: "PATCH", body: JSON.stringify({ archived: true }) });
-        _closePanel();
-        await loadTasks();
-        render();
-      });
-    }
-
-    // Delete task
-    const delBtn = document.getElementById("deleteBtn");
-    if (delBtn) {
-      delBtn.addEventListener("click", async () => {
-        if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
-        await api("/tasks/" + taskId, { method: "DELETE" });
-        _closePanel();
-        await loadTasks();
-        render();
-      });
-    }
-
-    // Toggle attachments
-    document.getElementById("toggleAttachments").addEventListener("click", () => {
-      document.getElementById("attachBody").classList.toggle("hidden");
-    });
-
-    // Review actions
-    if (task.column === "review") {
-      document.getElementById("approveBtn").addEventListener("click", async () => {
-        await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "done" }) });
-        _closePanel();
-        await loadTasks();
-        render();
-      });
-
-      document.getElementById("reworkBtn").addEventListener("click", async () => {
-        const comment = prompt("Комментарий к доработке (необязательно):");
-        if (comment) {
-          await api("/tasks/" + taskId + "/comments", {
-            method: "POST",
-            body: JSON.stringify({ author: "steve", text: "🔄 " + comment }),
-          });
-        }
-        await api("/tasks/" + taskId + "/move", {
-          method: "POST",
-          body: JSON.stringify({ column: "todo" }),
-        });
-        _closePanel();
-        await loadTasks();
-        render();
-      });
-    }
-
-    // Attachment upload
+    // Attachment upload (kept separate — fileInput is outside detailContent)
     const attachBtn = document.getElementById("attachBtn");
     const fileInput = document.getElementById("attachFileInput");
     attachBtn.addEventListener("click", () => fileInput.click());
