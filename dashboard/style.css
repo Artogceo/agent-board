@@ -1630,19 +1630,6 @@ header h1 .brand-sub {
     flex-shrink: 0;
   }
 
-  #detailContent {
-    overflow: hidden;
-  }
-
-  .chat-container {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .detail-attachments {
-    flex-shrink: 0;
-  }
-
   .tl-author-input {
     height: 36px;
     font-size: 14px;
@@ -3157,20 +3144,20 @@ header, .header, #filterBar, #viewTabs, .project-bar {
 }
 
 /* ================================================================
-   FIX: timeline-input sticky bottom — must be last child in #detailContent
-   #detailContent as flex column lets chat-container grow and input stay bottom
+   FIX: timeline-input sticky bottom
+   #detailContent: overflow hidden → only .chat-container scrolls
    ================================================================ */
 #detailContent {
   display: flex !important;
   flex-direction: column !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
+  overflow: hidden !important;
 }
 .chat-container {
-  flex: 1 1 auto !important;
-  min-height: 80px;
-  overflow-y: auto;
+  flex: 1 !important;
+  overflow-y: auto !important;
   overflow-x: hidden !important;
+  min-height: 80px;
+  -webkit-overflow-scrolling: touch;
 }
 .detail-attachments {
   flex-shrink: 0;
