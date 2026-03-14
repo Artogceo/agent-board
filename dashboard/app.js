@@ -761,14 +761,10 @@
     const priorityColor = priorityColors[task.priority] || 'var(--text-muted)';
     const priorityDot = `<span class="card-priority-dot" style="background:${priorityColor}" title="${task.priority}"></span>`;
 
-    // Column border-left color class
-    const colClass = `card-col-${task.column}`;
-
     return `
-      <div class="card ${colClass} ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${task.column}">
+      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${task.column}">
         <div class="card-header-row">
-          <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
-          ${priorityDot}
+          ${priorityDot}<div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
         </div>
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
         <div class="card-meta">
