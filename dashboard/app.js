@@ -398,6 +398,26 @@
   const ptrIndicator = document.getElementById("ptrIndicator");
   const boardView = document.getElementById("boardView");
 
+  // P1.4 + P1.5: Event delegation for card quick-action buttons (status change & accept)
+  boardView.addEventListener('click', async (e) => {
+    // Quick status buttons
+    const qaBtn = e.target.closest('.card-qa-btn');
+    if (qaBtn) {
+      e.stopPropagation();
+      await api(`/tasks/${qaBtn.dataset.id}/move`, { method: 'POST', body: JSON.stringify({ column: qaBtn.dataset.col }) });
+      await loadTasks(); render();
+      return;
+    }
+    // Accept button (review → done)
+    const acceptBtn = e.target.closest('.card-accept-btn');
+    if (acceptBtn) {
+      e.stopPropagation();
+      await api(`/tasks/${acceptBtn.dataset.id}/move`, { method: 'POST', body: JSON.stringify({ column: 'done' }) });
+      await loadTasks(); render();
+      return;
+    }
+  });
+
   let _ptrInitialized = false;
   function initPullToRefresh() {
     // Only on mobile; only initialize once
@@ -554,10 +574,12 @@
       <h3 style="margin:24px 0 12px">Status Breakdown</h3>
       <div class="stat-bars">${statusBars}</div>
       <h3 style="margin:24px 0 12px">Agent Performance</h3>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 16px">
       <table class="stats-table">
         <thead><tr><th>Agent</th><th>Total</th><th>Done</th><th>Failed</th><th>Active</th><th>Avg Time</th><th>Rate</th></tr></thead>
         <tbody>${agentRows || '<tr><td colspan="7">No agent data yet</td></tr>'}</tbody>
       </table>
+      </div>
     `;
   }
 
@@ -741,6 +763,21 @@
     const complexHtml = task.complexity === "complex" ? '<span class="badge badge-complex">Complex</span>' : "";
     const planHtml = task.planningMode ? '<span class="badge badge-planning">\uD83D\uDCCB</span>' : "";
 
+    // P1.4: Quick status buttons
+    const STATUS_ORDER = ['backlog', 'todo', 'doing', 'review', 'done'];
+    const statusIdx = STATUS_ORDER.indexOf(task.column);
+    const prevStatus = statusIdx > 0 ? STATUS_ORDER[statusIdx - 1] : null;
+    const nextStatus = statusIdx < STATUS_ORDER.length - 1 ? STATUS_ORDER[statusIdx + 1] : null;
+    const quickActionsHtml = `<div class="card-quick-actions">
+      ${prevStatus ? `<button class="card-qa-btn" data-id="${task.id}" data-col="${prevStatus}">← ${prevStatus}</button>` : '<span></span>'}
+      ${nextStatus ? `<button class="card-qa-btn card-qa-next" data-id="${task.id}" data-col="${nextStatus}">${nextStatus} →</button>` : ''}
+    </div>`;
+
+    // P1.5: Accept button for review cards
+    const acceptBtnHtml = task.column === 'review'
+      ? `<button class="card-accept-btn" data-id="${task.id}">✅ Принять</button>`
+      : '';
+
     return `
       <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}">
         <div class="card-header-row">
@@ -758,6 +795,8 @@
           ${deadlineHtml}
           ${comments}
         </div>
+        ${quickActionsHtml}
+        ${acceptBtnHtml}
       </div>`;
   }
 
@@ -784,6 +823,7 @@
     let startY = 0;
     let currentX = 0;
     let isSwiping = false;
+    let swipeActivated = false; // P0: threshold guard — don't block board scroll
     const taskId = card.dataset.id;
     const task = state.tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -792,6 +832,7 @@
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       isSwiping = true;
+      swipeActivated = false; // reset on each new touch
       card.style.transition = 'none';
     }, { passive: true });
 
@@ -802,9 +843,19 @@
       const y = e.touches[0].clientY;
       const diffX = x - startX;
       const diffY = y - startY;
-      
+
+      // P0: Only activate card-swipe when clearly horizontal (deltaX > 20px AND deltaX > deltaY*2)
+      // This lets the board handle diagonal/vertical gestures freely
+      if (!swipeActivated) {
+        if (Math.abs(diffX) > 20 && Math.abs(diffX) > Math.abs(diffY) * 2) {
+          swipeActivated = true;
+        } else {
+          return; // pass gesture to the board
+        }
+      }
+
       // Only handle horizontal swipes
-      if (Math.abs(diffX) > Math.abs(diffY)) {
+      if (swipeActivated) {
         e.preventDefault();
         currentX = diffX;
         
@@ -1004,57 +1055,7 @@
   });
 
   // Swipe to close detail panel (mobile)
-  function initDetailSwipe() {
-    if (window.matchMedia('(min-width: 769px)').matches) return;
-    
-    let startY = 0;
-    let currentY = 0;
-    let isSwiping = false;
-    
-    detailPanel.addEventListener('touchstart', (e) => {
-      // Only allow swipe from drag handle area or header
-      if (e.target.closest('.detail-header') || e.clientY < 100) {
-        startY = e.touches[0].clientY;
-        isSwiping = true;
-        detailPanel.classList.add('swiping');
-      }
-    }, { passive: true });
-    
-    detailPanel.addEventListener('touchmove', (e) => {
-      if (!isSwiping) return;
-      
-      currentY = e.touches[0].clientY;
-      const diff = currentY - startY;
-      
-      if (diff > 0) {
-        detailPanel.style.transform = `translateY(${diff}px)`;
-      }
-    }, { passive: true });
-    
-    detailPanel.addEventListener('touchend', () => {
-      if (!isSwiping) return;
-      isSwiping = false;
-      detailPanel.classList.remove('swiping');
-      
-      const diff = currentY - startY;
-      
-      if (diff > 100) {
-        // Close
-        detailPanel.style.transform = 'translateY(100%)';
-        setTimeout(() => {
-          _closePanel();
-          detailPanel.style.transform = '';
-          if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
-          currentDetailTaskId = null;
-        }, 200);
-      } else {
-        // Snap back
-        detailPanel.style.transform = '';
-      }
-    });
-  }
-  
-  initDetailSwipe();
+  // initDetailSwipe() removed (P2.9) — initBottomSheet() handles close gesture
 
   // --- Timeline helpers ---
   function getMessageType(c) {
@@ -1225,6 +1226,7 @@
         </div>
         <div class="detail-header-actions">${archiveBtn}${deleteBtn}</div>
       </div>
+      ${reviewHtml}
       <div class="chat-container" id="chatMessages"></div>
       <div class="timeline-input">
         <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
@@ -1233,7 +1235,6 @@
           <button class="btn btn-primary" id="addCommentBtn">Send</button>
         </div>
       </div>
-      ${reviewHtml}
       <div class="detail-attachments">
         <div class="detail-attach-toggle" id="toggleAttachments">\uD83D\uDCCE Attachments (${atts.length})</div>
         <div class="detail-attach-body" id="attachBody">
@@ -1265,13 +1266,13 @@
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment(); }
     });
 
-    // Focus handler for mobile - scroll into view when keyboard opens
+    // P1.7: iOS keyboard fix — lift timeline-input above keyboard
     commentTextEl.addEventListener('focus', () => {
-      setTimeout(() => {
-        if (window.matchMedia('(max-width: 768px)').matches) {
-          commentTextEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 300);
+      document.body.classList.add('keyboard-open');
+      setTimeout(() => commentTextEl.scrollIntoView({ block: 'end', behavior: 'smooth' }), 350);
+    });
+    commentTextEl.addEventListener('blur', () => {
+      document.body.classList.remove('keyboard-open');
     });
 
     // Archive task

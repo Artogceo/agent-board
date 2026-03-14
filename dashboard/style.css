@@ -958,6 +958,7 @@ header h1 .brand-sub {
   gap: 10px;
   padding: 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   min-height: 200px;
   background: var(--bg);
@@ -966,16 +967,17 @@ header h1 .brand-sub {
 }
 
 .chat-bubble {
-  max-width: 80%;
+  max-width: min(80%, calc(100vw - 64px));
   padding: 8px 12px;
   border-radius: 12px;
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
+  overflow: hidden;
 }
 
 .chat-bubble-text {
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
@@ -2248,8 +2250,8 @@ input, textarea, select, button {
   /* Timeline container: plain block — NO inner overflow-y */
   .timeline-container,
   .chat-container {
-    overflow: visible !important;
     overflow-y: visible !important;
+    overflow-x: hidden !important;
     height: auto !important;
     min-height: 180px !important;
     flex: none !important;
@@ -2695,10 +2697,11 @@ body.detail-panel-open {
     padding-bottom: 0 !important;
   }
 
-  /* Comments (timeline): visible with its own scroll */
+  /* Comments (timeline): vertical scroll, no horizontal overflow */
   .timeline-container,
   .chat-container {
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: contain !important;
     min-height: 200px !important;
@@ -2864,4 +2867,90 @@ body.loading::before {
   user-select: all;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* ================================================================
+   MOBILE UX PRO MAX — P1/P2 additions
+   ================================================================ */
+
+/* --- Card Quick Actions (status prev/next buttons) --- */
+.card-quick-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.card-qa-btn {
+  flex: 1;
+  min-height: 32px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.card-qa-btn:active {
+  opacity: 0.7;
+  background: var(--bg);
+}
+
+/* --- Card Accept Button (review column) --- */
+.card-accept-btn {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 8px;
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.card-accept-btn:active {
+  opacity: 0.85;
+}
+
+/* --- Review Actions: at top of detail panel (right after header) --- */
+.review-actions {
+  background: var(--surface);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* --- iOS Keyboard fix: timeline input floats above keyboard --- */
+@supports (-webkit-touch-callout: none) {
+  body.keyboard-open .timeline-input {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 300;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* --- Touch targets: min 44×44px for key interactive elements (P2) --- */
+@media (max-width: 768px) {
+  #addCommentBtn {
+    min-height: 44px;
+    min-width: 64px;
+  }
+  .card-delete-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
 }
