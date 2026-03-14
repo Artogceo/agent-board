@@ -1366,10 +1366,13 @@
 
     const atts = task.attachments || [];
     const attHtml = atts.map((a) => {
-      if (a.mimeType && a.mimeType.startsWith("image/")) {
-        return `<img class="attachment-thumb" src="data:${a.mimeType};base64,${a.data}" title="${esc(a.filename)}" onclick="window.open(this.src)">`;
+      const diskName = a.filePath ? a.filePath.split("/").pop() : null;
+      const src = diskName ? `/api/attachments/${task.id}/${diskName}` : (a.data ? `data:${a.mimeType};base64,${a.data}` : null);
+      if (a.mimeType && a.mimeType.startsWith("image/") && src) {
+        return `<img class="attachment-thumb" src="${src}" title="${esc(a.filename)}" onclick="window.open(this.src)">`;
       }
-      return `<span class="attachment-file" title="${esc(a.filename)}">\uD83D\uDCCE ${esc(a.filename)}</span>`;
+      if (src) return `<a class="attachment-file" href="${src}" target="_blank" title="${esc(a.filename)}">📎 ${esc(a.filename)}</a>`;
+      return `<span class="attachment-file" title="${esc(a.filename)}">📎 ${esc(a.filename)}</span>`;
     }).join("");
 
     const reviewHtml = task.column === "review" ? `

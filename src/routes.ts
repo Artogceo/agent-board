@@ -7,6 +7,7 @@ import * as store from "./store";
 import { generateId, now } from "./utils";
 import { Task, TaskColumn, TaskPriority, NextTask, AgentStats, BoardStats, Attachment } from "./types";
 import { moveTask } from "./services";
+import { saveAttachmentToDisk, deleteTaskAttachments } from "./attachments";
 import { appendAuditLog, readAuditLog } from "./audit";
 import {
   CreateTaskSchema,
@@ -650,6 +651,9 @@ router.delete("/tasks/:id", async (req: Request, res: Response) => {
   const deleted = await store.deleteTask(taskId);
   if (!deleted) return res.status(404).json({ error: "Task not found" });
 
+  // Clean up attachment files
+  deleteTaskAttachments(taskId);
+
   // Clean up orphaned dependencies in other tasks
   const allTasks = store.getTasks({});
   for (const t of allTasks) {
@@ -703,7 +707,7 @@ router.post("/tasks/:id/attachments", validate(CreateAttachmentSchema), async (r
   if (!task) return res.status(404).json({ error: "Task not found" });
 
   const { filename, mimeType, data, uploadedBy } = req.body;
-  const attachment: Attachment = {
+  const rawAttachment: Attachment = {
     id: generateId("att"),
     filename,
     mimeType,
@@ -712,6 +716,8 @@ router.post("/tasks/:id/attachments", validate(CreateAttachmentSchema), async (r
     uploadedAt: now(),
   };
 
+  // Save to disk, strip base64
+  const attachment = saveAttachmentToDisk(task.id, rawAttachment);
   const attachments = [...(task.attachments || []), attachment];
   const updated = await store.updateTask(req.params.id as string, { attachments } as any);
   if (!updated) return res.status(404).json({ error: "Task not found" });
@@ -731,8 +737,8 @@ router.post("/tasks/:id/attachments", validate(CreateAttachmentSchema), async (r
 router.get("/tasks/:id/attachments", (req: Request, res: Response) => {
   const task = store.getTask(req.params.id as string);
   if (!task) return res.status(404).json({ error: "Task not found" });
-  // Return attachments without base64 data for listing (use full endpoint for download)
-  const list = (task.attachments || []).map(({ data: _data, ...meta }) => meta);
+  // Return attachments without base64 data for listing
+  const list = (task.attachments || []).map(({ data: _d, ...meta }) => meta);
   res.json(list);
 });
 

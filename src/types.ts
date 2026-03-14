@@ -19,8 +19,10 @@ export interface Attachment {
   id: string;
   filename: string;
   mimeType: string;
-  data: string;       // base64
-  uploadedBy: string;
+  data?: string;        // base64 (legacy, removed after migration)
+  filePath?: string;    // path relative to data dir
+  hash?: string;        // SHA256 for dedup
+  uploadedBy?: string;
   uploadedAt: string;
 }
 

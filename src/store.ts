@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, readdir
 import path from "path";
 import { Project, Task, Agent } from "./types";
 
-const MAX_BACKUPS = 50;
+const MAX_BACKUPS = 5;
 
 // Async mutex for file locking (single-process, no external deps)
 class AsyncMutex {

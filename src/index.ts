@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 import express from "express";
 import path from "path";
-import { setDataDir } from "./store";
+import compression from "compression";
+import { setDataDir, getTasks } from "./store";
+import { setAttachmentsDataDir, migrateAttachments, getAttachmentPath, cleanupOldAttachments } from "./attachments";
 import apiRouter from "./routes";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { Task } from "./types";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -19,10 +23,70 @@ function parseArgs() {
 
 const { port, dataDir } = parseArgs();
 setDataDir(dataDir);
+setAttachmentsDataDir(dataDir);
+
+// --- Migration: extract base64 attachments to disk ---
+function runMigration() {
+  const tasksPath = path.join(dataDir, "tasks.json");
+  if (!existsSync(tasksPath)) return;
+  
+  try {
+    const tasks: Task[] = JSON.parse(readFileSync(tasksPath, "utf-8"));
+    const hasBase64 = tasks.some(t => t.attachments?.some(a => a.data));
+    if (!hasBase64) {
+      console.log("[migration] No base64 attachments to migrate");
+      return;
+    }
+    
+    const { migrated, filesWritten } = migrateAttachments(tasks);
+    if (migrated > 0) {
+      const tmp = tasksPath + ".tmp";
+      writeFileSync(tmp, JSON.stringify(tasks, null, 2));
+      const { renameSync } = require("fs");
+      renameSync(tmp, tasksPath);
+      console.log(`[migration] Migrated ${migrated} attachments, ${filesWritten} files written`);
+    }
+  } catch (e) {
+    console.error("[migration] Failed:", e);
+  }
+}
+
+runMigration();
+
+// --- Cleanup old attachments (>14 days) ---
+function runCleanup() {
+  try {
+    const tasksPath = path.join(dataDir, "tasks.json");
+    if (!existsSync(tasksPath)) return;
+    const tasks: Task[] = JSON.parse(readFileSync(tasksPath, "utf-8"));
+    const deleted = cleanupOldAttachments(tasks);
+    if (deleted > 0) {
+      const tmp = tasksPath + ".tmp";
+      writeFileSync(tmp, JSON.stringify(tasks, null, 2));
+      const { renameSync } = require("fs");
+      renameSync(tmp, tasksPath);
+      console.log(`[cleanup] Deleted ${deleted} old attachment files`);
+    }
+  } catch (e) {
+    console.error("[cleanup] Failed:", e);
+  }
+}
+
+runCleanup();
+setInterval(runCleanup, 6 * 60 * 60 * 1000); // every 6 hours
 
 const app = express();
 
-app.use(express.json({ limit: "1mb" }));
+app.use(compression());
+app.use(express.json({ limit: "10mb" }));
+
+// Serve attachment files (no auth needed for viewing)
+app.get("/api/attachments/:taskId/:filename", (req, res) => {
+  const { taskId, filename } = req.params;
+  const fp = getAttachmentPath(taskId, filename);
+  if (!fp) return res.status(404).json({ error: "Attachment not found" });
+  res.sendFile(fp);
+});
 
 // API routes
 app.use("/api", apiRouter);
