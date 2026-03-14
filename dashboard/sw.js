@@ -1,81 +1,59 @@
 // AgentOS Board - Service Worker
-const CACHE_NAME = 'agentos-board-v2';
+const CACHE_NAME = 'agentos-board-v10';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css',
-  '/app.js',
   '/manifest.json'
+  // app.js и style.css — НЕ кешируем, всегда свежие
 ];
 
-// Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    caches.keys().then((names) =>
+      Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n)))
+    )
   );
   self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache for API calls
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-  
-  // API calls - network only
+  const url = new URL(event.request.url);
+
+  // API — всегда сеть
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(request));
+    event.respondWith(fetch(event.request));
     return;
   }
-  
-  // Static assets - cache first, network fallback
+
+  // JS и CSS — всегда сеть (без кеша), чтобы изменения были мгновенными
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Остальное — cache-first с сетевым fallback
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        // Return cached version but fetch update in background
-        fetch(request).then((response) => {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, response);
-          });
-        }).catch(() => {});
-        return cached;
-      }
-      
-      return fetch(request).then((response) => {
-        // Cache successful responses
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request).then((response) => {
         if (response.status === 200) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clone);
-          });
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       });
     }).catch(() => {
-      // Fallback for HTML pages
-      if (request.destination === 'document') {
-        return caches.match('/index.html');
-      }
+      if (event.request.destination === 'document') return caches.match('/index.html');
     })
   );
 });
 
-// Handle push notifications (future feature)
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {};
   event.waitUntil(
@@ -83,16 +61,12 @@ self.addEventListener('push', (event) => {
       body: data.body || 'New notification',
       icon: '/icon-192.png',
       badge: '/badge-72.png',
-      data: data.url || '/',
-      actions: data.actions || []
+      data: data.url || '/'
     })
   );
 });
 
-// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data || '/')
-  );
+  event.waitUntil(clients.openWindow(event.notification.data || '/'));
 });
