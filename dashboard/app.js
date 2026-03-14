@@ -1168,24 +1168,8 @@
   // --- Panel open/close with iOS body scroll lock ---
   function _openPanel() {
     detailPanel.classList.add('open');
-    // БАГ 1 fix: dark overlay that covers header (z-index 2400, below panel at 2500)
-    if (!document.getElementById('detailOverlay')) {
-      const ov = document.createElement('div');
-      ov.id = 'detailOverlay';
-      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2400;top:0';
-      ov.addEventListener('click', () => {
-        _closePanel();
-        if (threadInterval) { clearInterval(threadInterval); threadInterval = null; }
-        currentDetailTaskId = null;
-      });
-      document.body.appendChild(ov);
-    }
     if (window.matchMedia('(max-width: 768px)').matches) {
       const scrollY = window.scrollY || window.pageYOffset;
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.top = `-${scrollY}px`;
       document.body.classList.add('detail-panel-open');
       document.body.dataset.panelScrollY = scrollY;
       const backdrop = document.getElementById('detailBackdrop');
@@ -1197,12 +1181,7 @@
   }
   function _closePanel() {
     detailPanel.classList.remove('open');
-    // БАГ 1 fix: remove overlay
-    document.getElementById('detailOverlay')?.remove();
     const scrollY = parseInt(document.body.dataset.panelScrollY || '0');
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
     document.body.style.top = '';
     document.body.classList.remove('detail-panel-open');
     if (scrollY) window.scrollTo(0, scrollY);
