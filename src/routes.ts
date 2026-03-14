@@ -271,6 +271,7 @@ async function notifyAgent(task: Task, context?: string, event?: string): Promis
       source: "agentboard",
       taskId: task.id,
       event: event || undefined,
+      deliver: false,   // org обрабатывает задачу без анонса в main (Steve) чат
     };
 
     const secret = getWebhookSecret();
