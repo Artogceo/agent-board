@@ -653,15 +653,15 @@ body.loading::before { content: ''; position: fixed; top: 50%; left: 50%; transf
   }
   .detail-panel.open { transform: translateY(0); }
 
-  #detailContent { flex: 1 1 0; display: flex; flex-direction: column; overflow: hidden; margin-top: 22px; padding-bottom: 0; position: relative; }
+  #detailContent { flex: 1 1 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; margin-top: 22px; padding-bottom: 0; position: relative; -webkit-overflow-scrolling: touch; }
   .detail-header { flex-shrink: 0; padding: 8px 14px; position: relative; background: var(--surface); z-index: 5; border-bottom: 1px solid var(--border); }
   .detail-header h2 { font-size: 14px; padding-right: 44px; margin-bottom: 4px; line-height: 1.3; }
 
-  .chat-container { flex: 1 1 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; min-height: 60px; }
+  .chat-container { flex: 1 0 auto; overflow: visible; min-height: 60px; }
   .chat-bubble { max-width: 90%; }
   .chat-bubble.chat-spec, .chat-bubble.chat-report { max-width: 96%; }
 
-  .timeline-input { flex-shrink: 0; position: relative; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 12px; padding-bottom: max(8px, env(safe-area-inset-bottom)); z-index: 10; }
+  .timeline-input { flex-shrink: 0; position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 12px; padding-bottom: max(8px, env(safe-area-inset-bottom)); z-index: 10; }
   .tl-author-input { height: 36px; font-size: 15px; margin-bottom: 6px; }
   .tl-text-input { font-size: 15px; min-height: 38px; }
   #addCommentBtn { min-height: 44px; min-width: 64px; }

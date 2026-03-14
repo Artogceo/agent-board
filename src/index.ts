@@ -91,8 +91,16 @@ app.get("/api/attachments/:taskId/:filename", (req, res) => {
 // API routes
 app.use("/api", apiRouter);
 
-// Dashboard static files
-app.use(express.static(path.join(__dirname, "..", "dashboard")));
+// Dashboard static files — no cache for dev
+app.use(express.static(path.join(__dirname, "..", "dashboard"), {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
 // Client view (read-only dashboard)
 app.get("/dashboard/client/:projectId", (_req, res) => {
