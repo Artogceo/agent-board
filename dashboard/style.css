@@ -446,15 +446,11 @@ header h1 .brand-name { font-size: 18px; font-weight: 800; color: var(--accent);
 .modal-file-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 0; }
 .modal-file-item { font-size: 11px; padding: 3px 8px; background: var(--surface-hover); border-radius: 4px; color: var(--text-muted); }
 
-/* --- FAB --- */
-.fab-container { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 24px; z-index: 90; display: flex; flex-direction: column; gap: 12px; align-items: flex-end; }
-.fab { width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(99,102,241,0.4); transition: transform 0.2s, box-shadow 0.2s; position: relative; }
-.fab:active { transform: scale(0.92); box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
-.fab-menu { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
-.fab-menu.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
-.fab-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.fab-item-label { background: var(--surface); color: var(--text); padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; box-shadow: var(--shadow); white-space: nowrap; }
-.fab-item-btn { width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--surface); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); }
+/* --- Bottom Nav Add Button --- */
+.bottom-nav-add { color: var(--green, #0d9488) !important; }
+.bottom-nav-add svg { stroke: var(--green, #0d9488); }
+.bottom-nav-add span { color: var(--green, #0d9488); }
+.bottom-nav-add:active { background: rgba(13, 148, 136, 0.1); }
 
 /* --- Pull to Refresh --- */
 .ptr-container { position: relative; overflow: hidden; }
@@ -554,7 +550,6 @@ body.loading::before { content: ''; position: fixed; top: 50%; left: 50%; transf
 
 /* --- iOS Keyboard Handling --- */
 @supports (-webkit-touch-callout: none) {
-  body.keyboard-open .fab-container { display: none; }
   body.keyboard-open .modal { transition: max-height 0.2s ease; }
   body.keyboard-open .modal-content-scrollable { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
   body.keyboard-open .modal-overlay { align-items: flex-start; padding-top: 20px; }
@@ -563,7 +558,7 @@ body.loading::before { content: ''; position: fixed; top: 50%; left: 50%; transf
 
 /* --- Touch device optimizations --- */
 @media (hover: none) and (pointer: coarse) {
-  .btn, .tab, .card, .detail-close, .bottom-nav-item, .fab { cursor: pointer; touch-action: manipulation; }
+  .btn, .tab, .card, .detail-close, .bottom-nav-item { cursor: pointer; touch-action: manipulation; }
   .btn:hover, .tab:hover, .card:hover { transform: none; }
   .btn:active, .tab:active, .card:active, .bottom-nav-item:active { opacity: 0.8; }
 }
@@ -680,10 +675,6 @@ body.loading::before { content: ''; position: fixed; top: 50%; left: 50%; transf
     justify-content: space-around; align-items: stretch;
   }
   .bottom-nav-item:active { opacity: 0.75; }
-
-  /* FAB above bottom nav */
-  .fab-container { bottom: calc(68px + env(safe-area-inset-bottom)); right: 14px; }
-  .fab { width: 52px; height: 52px; font-size: 22px; box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
 
   /* Modal: bottom sheet */
   .modal-overlay { align-items: flex-end; padding: 0; }

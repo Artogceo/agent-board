@@ -375,44 +375,17 @@
     });
   }
 
-  // --- FAB (Floating Action Button) ---
-  const fabContainer = document.getElementById("fabContainer");
-  const fabMain = document.getElementById("fabMain");
-  const fabMenu = document.getElementById("fabMenu");
-  const fabNewProject = document.getElementById("fabNewProject");
-  const fabNewTask = document.getElementById("fabNewTask");
-  let fabOpen = false;
-
-  function toggleFab() {
-    fabOpen = !fabOpen;
-    fabMenu.classList.toggle("open", fabOpen);
-    fabMain.textContent = fabOpen ? "\u2715" : "+";
-    fabMain.style.transform = fabOpen ? "rotate(45deg)" : "rotate(0deg)";
+  // --- Bottom Nav Add Button ---
+  const navAddBtn = document.getElementById("navAddBtn");
+  if (navAddBtn) {
+    navAddBtn.addEventListener("click", () => {
+      showTaskModal(state.currentView === "board" ? state.activeColumn || "todo" : "todo");
+    });
+    navAddBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      showTaskModal(state.currentView === "board" ? state.activeColumn || "todo" : "todo");
+    }, { passive: false });
   }
-
-  fabMain.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleFab();
-  });
-
-  fabNewProject.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleFab();
-    document.getElementById("newProjectBtn").click();
-  });
-
-  fabNewTask.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleFab();
-    showTaskModal("backlog");
-  });
-
-  // Close FAB when clicking outside
-  document.addEventListener("click", (e) => {
-    if (fabOpen && !fabContainer.contains(e.target)) {
-      toggleFab();
-    }
-  });
 
   // --- Pull to refresh ---
   let ptrStartY = 0;
@@ -1843,52 +1816,8 @@
     });
   }
 
-  // --- FAB Logic ---
-  function initFAB() {
-    const fabMain = document.getElementById('fabMain');
-    const fabMenu = document.getElementById('fabMenu');
-    if (!fabMain) return;
-    
-    let isOpen = false;
-    fabMain.addEventListener('click', () => {
-      isOpen = !isOpen;
-      fabMenu.classList.toggle('open', isOpen);
-      fabMain.textContent = isOpen ? '✕' : '+';
-    });
-    
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.fab-container') && isOpen) {
-        isOpen = false;
-        fabMenu.classList.remove('open');
-        fabMain.textContent = '+';
-      }
-    });
-    
-    const fabNewProject = document.getElementById('fabNewProject');
-    const fabNewTask = document.getElementById('fabNewTask');
-    
-    if (fabNewProject) {
-      fabNewProject.addEventListener('click', () => {
-        document.getElementById('newProjectBtn')?.click();
-        isOpen = false;
-        fabMenu.classList.remove('open');
-        fabMain.textContent = '+';
-      });
-    }
-    
-    if (fabNewTask) {
-      fabNewTask.addEventListener('click', () => {
-        showTaskModal('backlog');
-        isOpen = false;
-        fabMenu.classList.remove('open');
-        fabMain.textContent = '+';
-      });
-    }
-  }
-
   // Initialize mobile features
   document.addEventListener('DOMContentLoaded', () => {
-    initFAB();
     initBottomSheet();
 
     // Close card action menus when clicking outside
