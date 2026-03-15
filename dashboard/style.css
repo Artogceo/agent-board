@@ -166,8 +166,6 @@ header h1 .brand-name { font-size: 18px; font-weight: 800; color: var(--accent);
 }
 .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06); transform: translateY(-1px); }
 .card.dragging { opacity: 0.4; }
-.card.swiping-left { transform: translateX(-80px); }
-.card.swiping-right { transform: translateX(80px); }
 .card-overdue { border-left: 3px solid var(--danger) !important; }
 
 .card[data-priority="urgent"] { border-left-color: #dc2626; }

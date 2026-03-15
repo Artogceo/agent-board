@@ -694,11 +694,6 @@
     board.querySelectorAll(".card").forEach(initDrag);
     board.querySelectorAll(".column-body").forEach(initDrop);
 
-    // Swipe actions on cards (mobile)
-    if (window.matchMedia('(max-width: 768px)').matches) {
-      board.querySelectorAll(".card").forEach(initSwipeActions);
-    }
-
     // --- Card action menu: stop propagation on menu container ---
     board.querySelectorAll(".card-actions-menu").forEach((menu) => {
       menu.addEventListener("click", (e) => e.stopPropagation());
@@ -905,94 +900,6 @@
           <div class="caps">${a.capabilities.map((c) => `<span class="badge badge-tag">${esc(c)}</span>`).join("")}</div>
         </div>`;
     }).join("");
-  }
-
-  // --- Swipe Actions (Mobile) ---
-  function initSwipeActions(card) {
-    let startX = 0;
-    let startY = 0;
-    let currentX = 0;
-    let isSwiping = false;
-    let swipeActivated = false; // P0: threshold guard — don't block board scroll
-    const taskId = card.dataset.id;
-    const task = state.tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    card.addEventListener('touchstart', (e) => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      isSwiping = true;
-      swipeActivated = false; // reset on each new touch
-      card.style.transition = 'none';
-    }, { passive: true });
-
-    card.addEventListener('touchmove', (e) => {
-      if (!isSwiping) return;
-      
-      const x = e.touches[0].clientX;
-      const y = e.touches[0].clientY;
-      const diffX = x - startX;
-      const diffY = y - startY;
-
-      // P0: Only activate card-swipe when clearly horizontal (deltaX > 20px AND deltaX > deltaY*2)
-      // This lets the board handle diagonal/vertical gestures freely
-      if (!swipeActivated) {
-        if (Math.abs(diffX) > 20 && Math.abs(diffX) > Math.abs(diffY) * 2) {
-          swipeActivated = true;
-        } else {
-          return; // pass gesture to the board
-        }
-      }
-
-      // Only handle horizontal swipes
-      if (swipeActivated) {
-        e.preventDefault();
-        currentX = diffX;
-        
-        // Limit swipe distance
-        const clampedX = Math.max(-100, Math.min(100, diffX));
-        card.style.transform = `translateX(${clampedX}px)`;
-        
-        // Add visual feedback classes
-        card.classList.toggle('swiping-left', diffX < -50);
-        card.classList.toggle('swiping-right', diffX > 50);
-      }
-    }, { passive: false });
-
-    card.addEventListener('touchend', async () => {
-      if (!isSwiping) return;
-      isSwiping = false;
-      card.style.transition = 'transform 0.2s ease';
-      card.classList.remove('swiping-left', 'swiping-right');
-      
-      // Check if swipe was far enough to trigger action
-      if (currentX < -100 && task.column !== 'done') {
-        // Swipe left - complete task
-        card.style.transform = 'translateX(-100%)';
-        setTimeout(async () => {
-          await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "done" }) });
-          await loadTasks();
-          render();
-        }, 200);
-      } else if (currentX > 100) {
-        // Swipe right - delete with confirmation
-        card.style.transform = 'translateX(100%)';
-        if (confirm(`Delete "${task.title}"?`)) {
-          setTimeout(async () => {
-            await api("/tasks/" + taskId, { method: "DELETE" });
-            await loadTasks();
-            render();
-          }, 200);
-        } else {
-          card.style.transform = 'translateX(0)';
-        }
-      } else {
-        // Snap back
-        card.style.transform = 'translateX(0)';
-      }
-      
-      currentX = 0;
-    });
   }
 
   // --- Drag & Drop ---
