@@ -1,4 +1,4 @@
-// Agent Board - Dashboard App
+// AgentOS - Dashboard App
 (function () {
   const API = "/api";
 
