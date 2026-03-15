@@ -837,7 +837,7 @@
     const statusSelect = `<select class="card-status-select" data-id="${task.id}" title="Изменить статус">${statusOptions}</select>`;
 
     return `
-      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${safeColumn(task.column)}" data-priority="${task.priority}">
+      <div class="card ${overdueClass} ${blockers.length ? "card-blocked" : ""}" draggable="true" data-id="${task.id}" data-column="${safeColumn(task.column)}" data-priority="${task.priority || "medium"}">
         <div class="card-header-row">
           <div class="card-title">${lockHtml ? lockHtml + " " : ""}${esc(task.title)}</div>
           <button class="card-menu-btn" data-card-id="${task.id}" aria-label="Task actions" title="Actions">⋯</button>
