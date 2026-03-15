@@ -1190,14 +1190,14 @@
         <div class="detail-header-actions">${archiveBtn}${deleteBtn}</div>
       </div>
       ${reviewHtml}
-      <div class="chat-container" id="chatMessages"></div>
       <div class="detail-attachments">
-        <div class="detail-attach-toggle" id="toggleAttachments">\uD83D\uDCCE Attachments (${atts.length})</div>
-        <div class="detail-attach-body hidden" id="attachBody">
-          <div class="attachment-grid" id="attachmentGrid">${attHtml}</div>
-          <button class="btn-attach" id="attachBtn">\uD83D\uDCCE Attach file</button>
+        <div class="detail-attach-header">
+          <span class="detail-attach-title">\uD83D\uDDBC Screenshots (${atts.length})</span>
+          <button class="btn-attach-plus" id="attachBtn" title="Add screenshot">+</button>
         </div>
+        <div class="attachment-grid" id="attachmentGrid">${attHtml}</div>
       </div>
+      <div class="chat-container" id="chatMessages"></div>
       <div class="timeline-input">
         <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
         <div class="tl-send-row">
