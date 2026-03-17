@@ -1111,6 +1111,7 @@
       return;
     }
     const userAuthors = ["steve", "reviewer"];
+    const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
     el.innerHTML = items.map((c) => {
       const isUser = userAuthors.includes((c.author || "").toLowerCase());
       const isSpec = c.type === 'spec';
@@ -1138,7 +1139,7 @@
         <div class="chat-meta">${c.at ? fmtTime(c.at) : ''}</div>
       </div>`;
     }).join("");
-    el.scrollTop = el.scrollHeight;
+    if (wasAtBottom) el.scrollTop = el.scrollHeight;
   }
 
   async function refreshTimeline(taskId) {
