@@ -968,12 +968,32 @@
       await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "done" }) });
       _closePanel(); await loadTasks(); render();
     } else if (id === "reworkBtn") {
-      const comment = prompt("Комментарий к доработке (необязательно):");
-      if (comment) {
-        await api("/tasks/" + taskId + "/comments", { method: "POST", body: JSON.stringify({ author: "steve", text: "🔄 " + comment }) });
-      }
-      await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "todo" }) });
-      _closePanel(); await loadTasks(); render();
+      // Custom rework modal instead of prompt()
+      const reworkOverlay = document.createElement("div");
+      reworkOverlay.className = "modal-overlay";
+      reworkOverlay.innerHTML = `
+        <div class="modal-card">
+          <h3 style="margin:0 0 12px;font-size:1rem;">🔄 На доработку</h3>
+          <label style="font-size:.8rem;color:#94a3b8;display:block;margin-bottom:6px;">Комментарий (необязательно)</label>
+          <textarea id="reworkComment" rows="5" style="width:100%;box-sizing:border-box;background:#0f1f2e;border:1px solid #1e3a50;color:#e2e8f0;border-radius:8px;padding:10px;font-size:.9rem;resize:vertical;min-height:100px;" placeholder="Что нужно исправить или доделать..."></textarea>
+          <div class="modal-actions" style="margin-top:12px;">
+            <button class="btn" id="reworkCancel" type="button">Отмена</button>
+            <button class="btn btn-primary" id="reworkConfirm" type="button">На доработку</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(reworkOverlay);
+      reworkOverlay.querySelector("#reworkCancel").addEventListener("click", () => reworkOverlay.remove());
+      reworkOverlay.querySelector("#reworkConfirm").addEventListener("click", async () => {
+        const comment = reworkOverlay.querySelector("#reworkComment").value.trim();
+        reworkOverlay.remove();
+        if (comment) {
+          await api("/tasks/" + taskId + "/comments", { method: "POST", body: JSON.stringify({ author: "steve", text: "🔄 " + comment }) });
+        }
+        await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "todo" }) });
+        _closePanel(); await loadTasks(); render();
+      });
+      setTimeout(() => reworkOverlay.querySelector("#reworkComment").focus(), 50);
     }
   });
 
@@ -1682,7 +1702,7 @@
       overlay.remove();
       await loadTasks();
       render();
-    }, { once: true });
+    });
   }
 
   document.getElementById("newTaskBtn").addEventListener("click", () => showTaskModal("backlog"));
