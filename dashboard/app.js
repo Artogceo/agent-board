@@ -303,19 +303,28 @@
   if (projectSelect) projectSelect.addEventListener("change", () => onProjectChange(projectSelect.value));
   if (projectSelectDesktop) projectSelectDesktop.addEventListener("change", () => onProjectChange(projectSelectDesktop.value));
 
-  // --- Agent filter ---
-  const agentFilter = document.getElementById("agentFilter");
-  function renderAgentFilter() {
-    // Get unique agents from tasks
-    const agents = [...new Set(state.tasks.map(t => t.assignee).filter(Boolean))].sort();
-    agentFilter.innerHTML = '<option value="">All Agents</option>' +
-      agents.map(a => `<option value="${a}" ${a === state.filterAgent ? "selected" : ""}>${a}</option>`).join("");
+  // --- Assignee filter pills ---
+  function setupAssigneeFilter(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll(".af-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.filterAgent = btn.dataset.value || null;
+        // sync both filter bars
+        ["assigneeFilter", "assigneeFilterDesktop"].forEach(id => {
+          const c = document.getElementById(id);
+          if (c) c.querySelectorAll(".af-btn").forEach(b => {
+            b.classList.toggle("active", b.dataset.value === (state.filterAgent || ""));
+          });
+        });
+        render();
+      });
+    });
   }
+  setupAssigneeFilter("assigneeFilter");
+  setupAssigneeFilter("assigneeFilterDesktop");
 
-  agentFilter.addEventListener("change", () => {
-    state.filterAgent = agentFilter.value || null;
-    render();
-  });
+  function renderAgentFilter() { /* legacy no-op: replaced by pills */ }
 
   // --- Archive toggle ---
   document.getElementById("archiveToggle").addEventListener("change", (e) => {

@@ -88,7 +88,11 @@
     <span class="header-brand">⬡ AgentOS</span>
     <div class="header-filters">
       <select id="projectSelect"><option value="">Loading...</option></select>
-      <select id="agentFilter"><option value="">All Agents</option></select>
+      <div class="assignee-filter" id="assigneeFilter">
+        <button class="af-btn active" data-value="">All</button>
+        <button class="af-btn" data-value="org">🤖 org</button>
+        <button class="af-btn" data-value="claude">🧠 claude</button>
+      </div>
     </div>
     <!-- Theme toggle: hidden on mobile via CSS, kept for desktop -->
     <button class="theme-toggle" id="themeToggle">&#9790;</button>
@@ -114,7 +118,11 @@
 
   <div class="project-bar" id="projectBar">
     <select id="projectSelectDesktop"><option value="">Loading...</option></select>
-    <select id="agentFilterDesktop"><option value="">All Agents</option></select>
+    <div class="assignee-filter" id="assigneeFilterDesktop">
+        <button class="af-btn active" data-value="">All</button>
+        <button class="af-btn" data-value="org">🤖 org</button>
+        <button class="af-btn" data-value="claude">🧠 claude</button>
+      </div>
     <button id="newProjectBtn">+ Project</button>
     <button id="newTaskBtn">+ Task</button>
     <label class="archive-toggle" id="archiveToggleLabel"><input type="checkbox" id="archiveToggle"> Show archived</label>
