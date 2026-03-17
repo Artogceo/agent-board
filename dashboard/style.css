@@ -478,6 +478,11 @@ header h1 .brand-name {
    ============================================ */
 .badge { font-size: 11px; padding: 2px 8px; border-radius: var(--radius-pill); font-weight: 500; }
 .badge-assignee { background: var(--accent-glass); color: var(--accent); }
+/* Assignee badges */
+.badge-assignee-org    { background: rgba(0, 221, 176, 0.15); color: #00ddb0; }
+.badge-assignee-claude { background: rgba(147, 51, 234, 0.15); color: #a855f7; }
+[data-theme="light"] .badge-assignee-org    { background: rgba(0, 160, 130, 0.12); color: #007a5e; }
+[data-theme="light"] .badge-assignee-claude { background: rgba(120, 40, 200, 0.12); color: #7c3aed; }
 .badge-priority-urgent { background: var(--red-glass);               color: var(--red); }
 .badge-priority-high   { background: rgba(255, 119, 51, 0.12);       color: var(--orange); }
 .badge-priority-medium { background: rgba(255, 187, 0, 0.12);        color: var(--yellow); }

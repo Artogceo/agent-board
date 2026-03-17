@@ -782,6 +782,13 @@
       .filter((dep) => dep && dep.column !== "done");
   }
 
+  function assigneeBadge(assignee) {
+    if (!assignee) return '';
+    const cls = assignee === 'org' ? 'badge-assignee-org' : assignee === 'claude' ? 'badge-assignee-claude' : 'badge-assignee';
+    const label = assignee === 'org' ? '🤖 org' : assignee === 'claude' ? '🧠 claude' : assignee;
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
   function renderCard(task) {
     const tags = task.tags.map((t) => `<span class="card-tag">${esc(t)}</span>`).join("");
     const comments = task.comments.length ? `<span class="card-comments">💬 ${task.comments.length}</span>` : "";
@@ -845,7 +852,7 @@
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
         <div class="card-meta">
           ${statusPill}
-          ${task.assignee ? `<span class="card-assignee assignee-${esc(task.assignee)}">${esc(task.assignee)}</span>` : ""}
+          ${task.assignee ? assigneeBadge(task.assignee) : ""}
           ${complexHtml}
           ${planHtml}
           ${tags}
@@ -1182,7 +1189,7 @@
         <h2>${esc(task.title)}</h2>
         <div class="detail-meta-row">
           <span class="badge" style="background:var(--col-${safeColumn(task.column)});color:#fff">${safeColumn(task.column)}</span>
-          ${task.assignee ? `<span class="badge badge-assignee">${esc(task.assignee)}</span>` : ""}
+          ${task.assignee ? assigneeBadge(task.assignee) : ""}
           <span class="badge badge-priority-${task.priority}">${task.priority}</span>
           ${unarchivedBadge}
           ${task.tags.map((t) => `<span class="badge badge-tag">${esc(t)}</span>`).join("")}
@@ -1582,18 +1589,13 @@
       </div>
     `);
 
-    // Complex mode → auto-set assignee to pasha
+    // Complex mode toggle — no longer auto-sets assignee (pasha not an option)
     const complexCb = overlay.querySelector("#modalComplexMode");
     const assigneeInput = overlay.querySelector("#modalTaskAssignee");
     complexCb.addEventListener("change", () => {
       if (complexCb.checked) {
-        assigneeInput.value = "pasha";
-        assigneeInput.disabled = true;
-        assigneeInput.style.opacity = "0.6";
-      } else {
-        assigneeInput.disabled = false;
-        assigneeInput.style.opacity = "1";
-        if (assigneeInput.value === "pasha") assigneeInput.value = "";
+        // Pre-select org for complex tasks if nothing is selected
+        if (!assigneeInput.value) assigneeInput.value = "org";
       }
     });
 

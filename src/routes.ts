@@ -602,7 +602,7 @@ router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Resp
       notifyAgent(created, msg, "task.create").catch(() => {});
       console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, created task ${created.id} stays in todo`);
     }
-  } else if (created.column === "todo" && created.assignee && (created.priority === "high" || created.priority === "urgent")) {
+  } else if (created.column === "todo" && created.assignee && created.assignee !== "claude" && (created.priority === "high" || created.priority === "urgent")) {
     // Non-org assignee but high/urgent priority → notify org
     notifyAgent(created, undefined, "task.create").catch(() => {});
   }
@@ -892,40 +892,40 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
   // Auto-dispatch: ANY task landing in "todo" → reassign to org + notify
   // This covers: new tasks, rework returns, and manual moves back to todo
   if (column === "todo") {
-    // Reassign to org if it was with an executor (rework scenario)
+    // Reassign to org if it was with an executor (rework scenario), but keep claude tasks as-is
     if (moveResult.task.assignee && moveResult.task.assignee !== "org" && moveResult.task.assignee !== "claude") {
       await store.updateTask(moveResult.task.id, { assignee: "org" });
       console.log(`[auto-dispatch] reassigned ${moveResult.task.id} from ${moveResult.task.assignee} → org (rework/todo)`);
     }
-    const allTasks = store.getTasks({});
-    const doingCount = allTasks.filter(t => t.column === "doing" && !t.archived).length;
-    console.log(`[auto-dispatch] task ${moveResult.task.id} landed in todo, doingCount=${doingCount}`);
-    if (doingCount < 2) {
-      // Try to auto-move to doing (may fail if no technicalSpec)
-      const autoResult = await moveTask(moveResult.task.id, "doing");
-      if ("task" in autoResult) {
-        const msg = `[AgentBoard] Новая задача для выполнения.\n\nID: ${autoResult.task.id}\nЗаголовок: ${autoResult.task.title}\nПриоритет: ${autoResult.task.priority}\nОписание: ${autoResult.task.description || ""}\n\nЗадача уже в статусе 'doing'. Делегируй подходящему субагенту, дождись announce, затем переведи в review.`;
-        if (autoResult.task.assignee !== "claude") {
+    // Claude tasks stay in todo untouched — no auto-dispatch
+    if (moveResult.task.assignee === "org" || !moveResult.task.assignee) {
+      const allTasks = store.getTasks({});
+      const doingCount = allTasks.filter(t => t.column === "doing" && !t.archived).length;
+      console.log(`[auto-dispatch] task ${moveResult.task.id} landed in todo, doingCount=${doingCount}`);
+      if (doingCount < 2) {
+        // Try to auto-move to doing (may fail if no technicalSpec)
+        const autoResult = await moveTask(moveResult.task.id, "doing");
+        if ("task" in autoResult) {
+          const msg = `[AgentBoard] Новая задача для выполнения.\n\nID: ${autoResult.task.id}\nЗаголовок: ${autoResult.task.title}\nПриоритет: ${autoResult.task.priority}\nОписание: ${autoResult.task.description || ""}\n\nЗадача уже в статусе 'doing'. Делегируй подходящему субагенту, дождись announce, затем переведи в review.`;
           notifyAgent(autoResult.task, msg, "task.autodispatch").catch(() => {});
-        }
-        const shortId1 = autoResult.task.id.slice(-8);
-        sendTelegramDirect(`⚙️ <b>Задача взята в работу</b>\n\n📌 ${autoResult.task.title}\n🆔 ${shortId1}\n⚡ ${autoResult.task.priority}`).catch(() => {});
-        console.log(`[auto-dispatch] auto-moved ${autoResult.task.id} to doing, webhook sent`);
-      } else {
-        // auto-move failed (e.g. no technicalSpec) — notify org to handle from todo
-        const msg = `[AgentOS] Новая задача для выполнения.\n\nID: ${moveResult.task.id}\nЗаголовок: ${moveResult.task.title}\nПриоритет: ${moveResult.task.priority}\nОписание: ${moveResult.task.description || ""}\n\nЗадача в статусе 'todo'. Напиши ТЗ, затем переведи в doing и делегируй субагенту.`;
-        if (moveResult.task.assignee !== "claude") {
+          const shortId1 = autoResult.task.id.slice(-8);
+          sendTelegramDirect(`⚙️ <b>Задача взята в работу</b>\n\n📌 ${autoResult.task.title}\n🆔 ${shortId1}\n⚡ ${autoResult.task.priority}`).catch(() => {});
+          console.log(`[auto-dispatch] auto-moved ${autoResult.task.id} to doing, webhook sent`);
+        } else {
+          // auto-move failed (e.g. no technicalSpec) — notify org to handle from todo
+          const msg = `[AgentOS] Новая задача для выполнения.\n\nID: ${moveResult.task.id}\nЗаголовок: ${moveResult.task.title}\nПриоритет: ${moveResult.task.priority}\nОписание: ${moveResult.task.description || ""}\n\nЗадача в статусе 'todo'. Напиши ТЗ, затем переведи в doing и делегируй субагенту.`;
           notifyAgent(moveResult.task, msg, "task.autodispatch").catch(() => {});
+          console.log(`[auto-dispatch] auto-move failed for ${moveResult.task.id}, notified org from todo`);
         }
-        console.log(`[auto-dispatch] auto-move failed for ${moveResult.task.id}, notified org from todo`);
+      } else {
+        // doing is full — notify org anyway so it knows about the task
+        const msg = `[AgentOS] Задача в очереди (doing занят).\n\nID: ${moveResult.task.id}\nЗаголовок: ${moveResult.task.title}\nПриоритет: ${moveResult.task.priority}`;
+        notifyAgent(moveResult.task, msg, "task.queued").catch(() => {});
+        console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, queued ${moveResult.task.id}, org notified`);
       }
     } else {
-      // doing is full — notify org anyway so it knows about the task
-      const msg = `[AgentOS] Задача в очереди (doing занят).\n\nID: ${moveResult.task.id}\nЗаголовок: ${moveResult.task.title}\nПриоритет: ${moveResult.task.priority}`;
-      if (moveResult.task.assignee !== "claude") {
-        notifyAgent(moveResult.task, msg, "task.queued").catch(() => {});
-      }
-      console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, queued ${moveResult.task.id}, org notified`);
+      // claude task landed in todo — leave untouched, no dispatch
+      console.log(`[auto-dispatch] claude task ${moveResult.task.id} moved to todo, skipping dispatch`);
     }
   }
 
