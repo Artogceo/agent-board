@@ -1139,7 +1139,7 @@
       el.innerHTML = '<div class="tl-empty">Нет активности.</div>';
       return;
     }
-    const userAuthors = ["steve", "reviewer"];
+    const userAuthors = ["artur", "steve", "reviewer"];
     const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
     el.innerHTML = items.map((c) => {
       const isUser = userAuthors.includes((c.author || "").toLowerCase());
@@ -1690,7 +1690,7 @@
               const mimeType = header.match(/:(.*?);/)[1];
               await api("/tasks/" + task.id + "/attachments", {
                 method: "POST",
-                body: JSON.stringify({ filename: file.name, mimeType, data, uploadedBy: "steve" }),
+                body: JSON.stringify({ filename: file.name, mimeType, data, uploadedBy: "Artur" }),
               });
               resolve();
             };

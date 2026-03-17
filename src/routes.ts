@@ -315,6 +315,7 @@ async function sendTaskUpdateWebhook(task: Task): Promise<boolean> {
     status: task.status,
     assignedTo: task.assignee,
     title: task.title,
+    deliver: false,
   };
 
   try {
@@ -557,7 +558,7 @@ router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Resp
     deadline: deadline || undefined,
     inputPath: inputPath || undefined,
     outputPath: outputPath || undefined,
-    requiresReview: requiresReview || false,
+    requiresReview: requiresReview !== undefined ? requiresReview : true,
     complexity: complexity || "normal",
     planningMode: planningMode || false,
     maxRetries: maxRetries ?? 2,
