@@ -948,7 +948,7 @@
     const id = target.id;
 
     if (id === "addCommentBtn") {
-      const author = document.getElementById("commentAuthor").value.trim() || "steve";
+      const author = document.getElementById("commentAuthor").value.trim() || "Artur";
       const text = document.getElementById("commentText").value.trim();
       if (!text) return;
       document.getElementById("commentText").value = "";
@@ -988,7 +988,7 @@
         const comment = reworkOverlay.querySelector("#reworkComment").value.trim();
         reworkOverlay.remove();
         if (comment) {
-          await api("/tasks/" + taskId + "/comments", { method: "POST", body: JSON.stringify({ author: "steve", text: "🔄 " + comment }) });
+          await api("/tasks/" + taskId + "/comments", { method: "POST", body: JSON.stringify({ author: "Artur", text: "🔄 " + comment }) });
         }
         await api("/tasks/" + taskId + "/move", { method: "POST", body: JSON.stringify({ column: "todo" }) });
         _closePanel(); await loadTasks(); render();
@@ -1074,7 +1074,7 @@
     if (task.description) {
       items.push({
         type: 'description',
-        author: task.createdBy || 'steve',
+        author: task.createdBy || 'Artur',
         text: task.description,
         at: task.createdAt,
       });
@@ -1123,7 +1123,7 @@
 
   function authorAvatar(author) {
     const map = {
-      steve: "👤", org: "🎯",
+      steve: "👤", artur: "👤", org: "🎯",
       "backend-cto": "⚡", "design-cdo": "🎨",
       pasha: "🏗️", qa: "🔍",
       "critic-audit": "🛡️", system: "⚙️"
@@ -1236,7 +1236,7 @@
       </div>
       <div class="chat-container" id="chatMessages"></div>
       <div class="timeline-input">
-        <input type="text" id="commentAuthor" placeholder="steve" value="steve" class="tl-author-input">
+        <input type="text" id="commentAuthor" placeholder="Artur" value="Artur" class="tl-author-input">
         <div class="tl-send-row">
           <input type="text" id="commentText" placeholder="Message..." class="tl-text-input">
           <button class="btn btn-primary" id="addCommentBtn">Send</button>
