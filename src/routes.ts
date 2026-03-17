@@ -578,7 +578,7 @@ router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Resp
     details: `Created task "${created.title}"`,
   });
 
-  // Auto-dispatch: created directly in "todo" with assignee "org" → try to auto-move to doing (any project)
+  // Auto-dispatch: created directly in "todo" with assignee "org" → auto-move to doing
   if (created.column === "todo" && created.assignee === "org") {
     const allTasksNow = store.getTasks({});
     const doingCount = allTasksNow.filter(t => t.column === "doing" && !t.archived).length;
@@ -603,7 +603,7 @@ router.post("/tasks", validate(CreateTaskSchema), async (req: Request, res: Resp
       notifyAgent(created, msg, "task.create").catch(() => {});
       console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, created task ${created.id} stays in todo`);
     }
-  } else if (created.column === "todo" && created.assignee && created.assignee !== "claude" && (created.priority === "high" || created.priority === "urgent")) {
+  } else if (created.column === "todo" && created.assignee && (created.priority === "high" || created.priority === "urgent")) {
     // Non-org assignee but high/urgent priority → notify org
     notifyAgent(created, undefined, "task.create").catch(() => {});
   }
@@ -890,16 +890,15 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
       });
   }
 
-  // Auto-dispatch: ANY task landing in "todo" → reassign to org + notify
-  // This covers: new tasks, rework returns, and manual moves back to todo
+  // Auto-dispatch: tasks landing in "todo" → org handles, EXCEPT claude tasks (manual)
   if (column === "todo") {
-    // Reassign to org if it was with an executor (rework scenario), but keep claude tasks as-is
+    // Reassign to org if it was with a team executor (rework scenario), skip claude
     if (moveResult.task.assignee && moveResult.task.assignee !== "org" && moveResult.task.assignee !== "claude") {
       await store.updateTask(moveResult.task.id, { assignee: "org" });
       console.log(`[auto-dispatch] reassigned ${moveResult.task.id} from ${moveResult.task.assignee} → org (rework/todo)`);
     }
-    // Claude tasks stay in todo untouched — no auto-dispatch
-    if (moveResult.task.assignee === "org" || !moveResult.task.assignee) {
+    // Claude tasks stay untouched — Artur handles them manually
+    if (moveResult.task.assignee !== "claude") {
       const allTasks = store.getTasks({});
       const doingCount = allTasks.filter(t => t.column === "doing" && !t.archived).length;
       console.log(`[auto-dispatch] task ${moveResult.task.id} landed in todo, doingCount=${doingCount}`);
@@ -924,9 +923,6 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
         notifyAgent(moveResult.task, msg, "task.queued").catch(() => {});
         console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, queued ${moveResult.task.id}, org notified`);
       }
-    } else {
-      // claude task landed in todo — leave untouched, no dispatch
-      console.log(`[auto-dispatch] claude task ${moveResult.task.id} moved to todo, skipping dispatch`);
     }
   }
 
