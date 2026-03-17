@@ -185,7 +185,7 @@ header h1 .brand { display: flex; align-items: center; gap: 10px; }
 header h1 .brand-name {
   font-size: 18px;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--cyan) 100%);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1029,7 +1029,7 @@ body.loading::before {
   .header-container .theme-toggle { display: none; }
   .header-brand {
     font-size: 16px; font-weight: 800; white-space: nowrap; flex-shrink: 0; letter-spacing: -0.5px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--cyan) 100%);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
   .header-filters { display: flex; gap: 6px; flex: 1; min-width: 0; }
@@ -1058,7 +1058,7 @@ body.loading::before {
     display: flex; flex-direction: row; overflow-x: scroll; overflow-y: hidden;
     scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain; padding: 0; gap: 0;
-    margin-top: calc(52px + 46px + env(safe-area-inset-top));
+    margin-top: calc(52px + 46px);
     height: calc(100dvh - 52px - 46px - env(safe-area-inset-top) - 60px - env(safe-area-inset-bottom));
     min-height: 0; scrollbar-width: none; -ms-overflow-style: none;
   }
@@ -1182,8 +1182,8 @@ body.loading::before {
   .modal-actions .btn-primary { flex: 2; }
 
   /* Views padding */
-  .agent-grid { padding: calc(52px + 46px + env(safe-area-inset-top) + 12px) 12px calc(60px + env(safe-area-inset-bottom) + 12px); grid-template-columns: 1fr; gap: 8px; }
-  .stats-view { padding: calc(52px + 46px + env(safe-area-inset-top) + 12px) 12px calc(60px + env(safe-area-inset-bottom) + 12px); }
+  .agent-grid { padding: calc(52px + 46px + 12px) 12px calc(60px + env(safe-area-inset-bottom) + 12px); grid-template-columns: 1fr; gap: 8px; }
+  .stats-view { padding: calc(52px + 46px + 12px) 12px calc(60px + env(safe-area-inset-bottom) + 12px); }
 }
 
 /* ============================================
