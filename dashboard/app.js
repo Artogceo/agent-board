@@ -1568,7 +1568,7 @@
       <select id="modalTaskAssignee" required>
         <option value="" disabled selected>— выбери исполнителя —</option>
         <option value="org">🤖 org (AI-оркестратор)</option>
-        <option value="claude">🧠 Claude (ручной)</option>
+        
       </select>
       <label>Priority</label>
       <select id="modalTaskPriority">
