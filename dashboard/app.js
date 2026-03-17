@@ -845,7 +845,7 @@
         ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ""}
         <div class="card-meta">
           ${statusPill}
-          ${task.assignee ? `<span class="card-assignee">${esc(task.assignee)}</span>` : ""}
+          ${task.assignee ? `<span class="card-assignee assignee-${esc(task.assignee)}">${esc(task.assignee)}</span>` : ""}
           ${complexHtml}
           ${planHtml}
           ${tags}
@@ -1527,8 +1527,12 @@
       <input type="text" id="modalTaskTitle" autofocus autocomplete="off" enterkeyhint="next">
       <label>Description</label>
       <textarea id="modalTaskDesc" rows="3" enterkeyhint="next"></textarea>
-      <label>Assignee</label>
-      <input type="text" id="modalTaskAssignee" placeholder="org" autocomplete="off" enterkeyhint="next">
+      <label>Assignee *</label>
+      <select id="modalTaskAssignee" required>
+        <option value="" disabled selected>— выбери исполнителя —</option>
+        <option value="org">🤖 org (AI-оркестратор)</option>
+        <option value="claude">🧠 claude (Claude Code)</option>
+      </select>
       <label>Priority</label>
       <select id="modalTaskPriority">
         <option value="medium" selected>Medium</option>
@@ -1584,10 +1588,10 @@
     complexCb.addEventListener("change", () => {
       if (complexCb.checked) {
         assigneeInput.value = "pasha";
-        assigneeInput.readOnly = true;
+        assigneeInput.disabled = true;
         assigneeInput.style.opacity = "0.6";
       } else {
-        assigneeInput.readOnly = false;
+        assigneeInput.disabled = false;
         assigneeInput.style.opacity = "1";
         if (assigneeInput.value === "pasha") assigneeInput.value = "";
       }
@@ -1618,7 +1622,13 @@
       const tags = overlay.querySelector("#modalTaskTags").value.trim();
       const isComplex = overlay.querySelector("#modalComplexMode").checked;
       const isPlanning = overlay.querySelector("#modalPlanningMode").checked;
-      const assignee = assigneeInput.value.trim() || "org";
+      const assignee = assigneeInput.value;
+      if (!assignee) {
+        alert("Выбери исполнителя (Assignee)!");
+        btn.disabled = false;
+        btn.textContent = "Create";
+        return;
+      }
 
       // Create task
       const task = await api("/tasks", {

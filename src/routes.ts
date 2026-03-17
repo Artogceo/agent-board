@@ -893,7 +893,7 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
   // This covers: new tasks, rework returns, and manual moves back to todo
   if (column === "todo") {
     // Reassign to org if it was with an executor (rework scenario)
-    if (moveResult.task.assignee && moveResult.task.assignee !== "org") {
+    if (moveResult.task.assignee && moveResult.task.assignee !== "org" && moveResult.task.assignee !== "claude") {
       await store.updateTask(moveResult.task.id, { assignee: "org" });
       console.log(`[auto-dispatch] reassigned ${moveResult.task.id} from ${moveResult.task.assignee} → org (rework/todo)`);
     }
@@ -905,20 +905,26 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
       const autoResult = await moveTask(moveResult.task.id, "doing");
       if ("task" in autoResult) {
         const msg = `[AgentBoard] Новая задача для выполнения.\n\nID: ${autoResult.task.id}\nЗаголовок: ${autoResult.task.title}\nПриоритет: ${autoResult.task.priority}\nОписание: ${autoResult.task.description || ""}\n\nЗадача уже в статусе 'doing'. Делегируй подходящему субагенту, дождись announce, затем переведи в review.`;
-        notifyAgent(autoResult.task, msg, "task.autodispatch").catch(() => {});
+        if (autoResult.task.assignee !== "claude") {
+          notifyAgent(autoResult.task, msg, "task.autodispatch").catch(() => {});
+        }
         const shortId1 = autoResult.task.id.slice(-8);
         sendTelegramDirect(`⚙️ <b>Задача взята в работу</b>\n\n📌 ${autoResult.task.title}\n🆔 ${shortId1}\n⚡ ${autoResult.task.priority}`).catch(() => {});
         console.log(`[auto-dispatch] auto-moved ${autoResult.task.id} to doing, webhook sent`);
       } else {
         // auto-move failed (e.g. no technicalSpec) — notify org to handle from todo
         const msg = `[AgentOS] Новая задача для выполнения.\n\nID: ${moveResult.task.id}\nЗаголовок: ${moveResult.task.title}\nПриоритет: ${moveResult.task.priority}\nОписание: ${moveResult.task.description || ""}\n\nЗадача в статусе 'todo'. Напиши ТЗ, затем переведи в doing и делегируй субагенту.`;
-        notifyAgent(moveResult.task, msg, "task.autodispatch").catch(() => {});
+        if (moveResult.task.assignee !== "claude") {
+          notifyAgent(moveResult.task, msg, "task.autodispatch").catch(() => {});
+        }
         console.log(`[auto-dispatch] auto-move failed for ${moveResult.task.id}, notified org from todo`);
       }
     } else {
       // doing is full — notify org anyway so it knows about the task
       const msg = `[AgentOS] Задача в очереди (doing занят).\n\nID: ${moveResult.task.id}\nЗаголовок: ${moveResult.task.title}\nПриоритет: ${moveResult.task.priority}`;
-      notifyAgent(moveResult.task, msg, "task.queued").catch(() => {});
+      if (moveResult.task.assignee !== "claude") {
+        notifyAgent(moveResult.task, msg, "task.queued").catch(() => {});
+      }
       console.log(`[auto-dispatch] doingCount=${doingCount} >= 2, queued ${moveResult.task.id}, org notified`);
     }
   }
