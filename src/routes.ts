@@ -839,6 +839,25 @@ router.post("/tasks/:id/move", validate(MoveTaskSchema), async (req: Request, re
   const taskBefore = store.getTask(req.params.id as string);
   const fromColumn = taskBefore?.column;
 
+  // Guard: только assignee или org могут двигать задачу из doing в review/done
+  const PROTECTED_DESTINATIONS = ["review", "done"];
+  const AGENT_ASSIGNEES = ["org", "claude", "backend-cto", "design-cdo", "pasha", "critic-audit", "qa"];
+
+  if (
+    taskBefore &&
+    PROTECTED_DESTINATIONS.includes(column) &&
+    taskBefore.column === "doing" &&
+    taskBefore.assignee &&
+    AGENT_ASSIGNEES.includes(taskBefore.assignee)
+  ) {
+    const agentId = getAgentId(req);
+    if (agentId !== taskBefore.assignee && agentId !== "org") {
+      return res.status(403).json({
+        error: `Only the assigned agent (${taskBefore.assignee}) or org can move this task to ${column}`
+      });
+    }
+  }
+
   const result = await moveTask(req.params.id as string, column);
 
   if ("error" in result && !("task" in result)) {
